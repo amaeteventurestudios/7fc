@@ -1,16 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readDb, isSetupMode, TEMP_ADMIN_EMAIL, TEMP_ADMIN_PASSWORD } from "@/lib/store";
+import {
+  getStore,
+  setupModeEnvEnabled,
+  ADMIN_TEMP_EMAIL,
+  ADMIN_TEMP_PASSWORD,
+} from "@/lib/data";
 import { verifyPassword, createSessionToken, SESSION_COOKIE } from "@/lib/auth";
 import { rateLimit, clientIp } from "@/lib/request";
 
 export async function GET() {
   // Exposes only whether setup mode is on (temporary credentials still active).
-  const db = await readDb();
-  const setup = isSetupMode(db);
+  const store = await getStore();
+  const setup = setupModeEnvEnabled() && (await store.isSetupMode());
   return NextResponse.json({
     setup_mode: setup,
-    temp_email: setup ? TEMP_ADMIN_EMAIL : null,
-    temp_password: setup ? TEMP_ADMIN_PASSWORD : null,
+    temp_email: setup ? ADMIN_TEMP_EMAIL : null,
+    temp_password: setup ? ADMIN_TEMP_PASSWORD : null,
   });
 }
 
@@ -30,8 +35,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
-  const db = await readDb();
-  const admin = db.admin_users.find((a) => a.email.toLowerCase() === email);
+  const store = await getStore();
+  const admin = await store.getAdminByEmail(email);
   if (!admin || !verifyPassword(password, admin.password_hash)) {
     return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
   }

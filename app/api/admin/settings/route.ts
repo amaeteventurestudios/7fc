@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readDb, mutate, logActivity } from "@/lib/store";
+import { getStore } from "@/lib/data";
 import { requireAdmin } from "@/lib/request";
 import type { GlobalWallSettings } from "@/lib/types";
 
@@ -19,8 +19,8 @@ const KEYS: Array<keyof GlobalWallSettings> = [
 export async function GET() {
   const auth = await requireAdmin();
   if ("error" in auth) return auth.error;
-  const db = await readDb();
-  return NextResponse.json({ settings: db.global_wall_settings });
+  const store = await getStore();
+  return NextResponse.json({ settings: await store.getSettings() });
 }
 
 export async function PUT(req: NextRequest) {
@@ -32,14 +32,11 @@ export async function PUT(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
-  const settings = await mutate((db) => {
-    for (const key of KEYS) {
-      if (typeof body[key] === "boolean") {
-        db.global_wall_settings[key] = body[key] as boolean;
-      }
-    }
-    logActivity(db, "settings_changed", "Global Wall settings updated");
-    return db.global_wall_settings;
-  });
+  const patch: Partial<GlobalWallSettings> = {};
+  for (const key of KEYS) {
+    if (typeof body[key] === "boolean") patch[key] = body[key] as boolean;
+  }
+  const store = await getStore();
+  const settings = await store.updateSettings(patch);
   return NextResponse.json({ settings });
 }

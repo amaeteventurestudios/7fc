@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
-import { mutate, logActivity } from "@/lib/store";
+import { getStore } from "@/lib/data";
 import { rateLimit, clientIp } from "@/lib/request";
 import { countryByCode } from "@/lib/countries";
 import { ERAS } from "@/lib/types";
-import type { Supporter } from "@/lib/types";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -50,38 +48,18 @@ export async function POST(req: NextRequest) {
   if (message.length > 500)
     return NextResponse.json({ error: "Message is too long." }, { status: 400 });
 
-  const result = await mutate((db) => {
-    const settings = db.global_wall_settings;
-    if (!settings.enable_submissions || settings.emergency_lock) {
-      return { error: "Submissions are currently closed." };
-    }
-    const supporter: Supporter = {
-      id: crypto.randomUUID(),
-      supporter_number: db.next_supporter_number++,
-      first_name,
-      last_name: last_name || null,
-      email,
-      country_name: country.name,
-      country_code: country.code,
-      favorite_era: favorite_era || null,
-      message: settings.allow_fan_messages && message ? message : null,
-      show_full_name: settings.allow_full_names && show_full_name,
-      status: settings.require_manual_approval ? "pending" : "approved",
-      created_at: new Date().toISOString(),
-    };
-    db.supporters.push(supporter);
-    logActivity(
-      db,
-      "supporter_submitted",
-      `New supporter #${supporter.supporter_number} (${supporter.first_name}, ${supporter.country_name}) submitted`
-    );
-    return {
-      supporter_number: supporter.supporter_number,
-      status: supporter.status,
-    };
+  const store = await getStore();
+  const result = await store.submitSupporter({
+    first_name,
+    last_name: last_name || null,
+    email,
+    country_name: country.name,
+    country_code: country.code,
+    favorite_era: favorite_era || null,
+    message: message || null,
+    show_full_name,
   });
 
-  if ("error" in result)
-    return NextResponse.json(result, { status: 403 });
+  if ("error" in result) return NextResponse.json(result, { status: 403 });
   return NextResponse.json(result, { status: 201 });
 }

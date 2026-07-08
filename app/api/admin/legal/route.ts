@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readDb, mutate, logActivity } from "@/lib/store";
+import { getStore } from "@/lib/data";
 import { requireAdmin } from "@/lib/request";
 import type { LegalDisclaimers } from "@/lib/types";
 
@@ -14,8 +14,8 @@ const KEYS: Array<keyof LegalDisclaimers> = [
 export async function GET() {
   const auth = await requireAdmin();
   if ("error" in auth) return auth.error;
-  const db = await readDb();
-  return NextResponse.json({ legal: db.legal_disclaimers });
+  const store = await getStore();
+  return NextResponse.json({ legal: await store.getLegal() });
 }
 
 export async function PUT(req: NextRequest) {
@@ -27,14 +27,13 @@ export async function PUT(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
-  const legal = await mutate((db) => {
-    for (const key of KEYS) {
-      if (typeof body[key] === "string") {
-        db.legal_disclaimers[key] = (body[key] as string).slice(0, 2000);
-      }
+  const patch: Partial<LegalDisclaimers> = {};
+  for (const key of KEYS) {
+    if (typeof body[key] === "string") {
+      patch[key] = (body[key] as string).slice(0, 2000);
     }
-    logActivity(db, "legal_edited", "Legal disclaimers updated");
-    return db.legal_disclaimers;
-  });
+  }
+  const store = await getStore();
+  const legal = await store.updateLegal(patch);
   return NextResponse.json({ legal });
 }

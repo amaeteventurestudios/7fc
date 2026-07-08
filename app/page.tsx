@@ -1,4 +1,5 @@
-import { readDb, publicSupporterView } from "@/lib/store";
+import { getStore } from "@/lib/data";
+import { publicSupporterView } from "@/lib/store";
 import { EraProvider } from "@/components/public/EraContext";
 import {
   DisclaimerBar,
@@ -28,22 +29,18 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const db = await readDb();
-  const settings = db.global_wall_settings;
-  const approved = db.supporters.filter((s) => s.status === "approved");
+  const store = await getStore();
+  const { settings, legal, products, approved } = await store.getPublicHome();
   const latest = [...approved]
     .sort((a, b) => b.supporter_number - a.supporter_number)
     .slice(0, 12)
     .map((s) => publicSupporterView(s, settings));
   const countryCount = new Set(approved.map((s) => s.country_code)).size;
   const latestCountry = latest[0]?.country_name ?? null;
-  const products = db.affiliate_products
-    .filter((p) => p.active)
-    .sort((a, b) => a.sort_order - b.sort_order);
 
   return (
     <EraProvider>
-      <DisclaimerBar text={db.legal_disclaimers.top_disclaimer} />
+      <DisclaimerBar text={legal.top_disclaimer} />
       <Nav />
       <main>
         <Hero />
@@ -65,10 +62,10 @@ export default async function HomePage() {
         <GlobalWallForm settings={settings} />
         <KitSection
           products={products}
-          disclosure={db.legal_disclaimers.affiliate_disclosure}
+          disclosure={legal.affiliate_disclosure}
         />
       </main>
-      <AboutFaqFooter legal={db.legal_disclaimers} />
+      <AboutFaqFooter legal={legal} />
     </EraProvider>
   );
 }

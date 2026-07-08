@@ -24,11 +24,16 @@ import { hashPassword } from "./auth";
 const DATA_DIR = path.join(process.cwd(), ".data");
 const DB_PATH = path.join(DATA_DIR, "db.json");
 
-export const TEMP_ADMIN_EMAIL = process.env.TEMP_ADMIN_EMAIL || "admin@7fc.net";
+export const TEMP_ADMIN_EMAIL =
+  process.env.ADMIN_TEMP_EMAIL ||
+  process.env.TEMP_ADMIN_EMAIL ||
+  "admin@7fc.net";
 export const TEMP_ADMIN_PASSWORD =
-  process.env.TEMP_ADMIN_PASSWORD || "ChangeMe-7FC-Now";
+  process.env.ADMIN_TEMP_PASSWORD ||
+  process.env.TEMP_ADMIN_PASSWORD ||
+  "ChangeMe-7FC-Now";
 
-const DEFAULT_SETTINGS: GlobalWallSettings = {
+export const DEFAULT_SETTINGS: GlobalWallSettings = {
   enable_submissions: true,
   require_manual_approval: true,
   show_supporter_count: true,
@@ -41,7 +46,7 @@ const DEFAULT_SETTINGS: GlobalWallSettings = {
   emergency_lock: false,
 };
 
-const DEFAULT_LEGAL: LegalDisclaimers = {
+export const DEFAULT_LEGAL: LegalDisclaimers = {
   top_disclaimer:
     "Unofficial fan tribute. 7FC is not affiliated with, endorsed by, sponsored by, or connected to Cristiano Ronaldo, CR7, any club, federation, sponsor, or official brand.",
   footer_disclaimer:

@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE, verifySessionToken } from "./auth";
-import { readDb } from "./store";
+import { getStore } from "./data";
 import type { AdminUser } from "./types";
 
 /** Simple in-memory rate limiter (per process). */
@@ -28,12 +28,12 @@ export function clientIp(req: NextRequest): string {
 
 /** Returns the authenticated admin user or null. */
 export async function getAdmin(): Promise<AdminUser | null> {
-  const store = await cookies();
-  const token = store.get(SESSION_COOKIE)?.value;
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE)?.value;
   const adminId = verifySessionToken(token);
   if (!adminId) return null;
-  const db = await readDb();
-  return db.admin_users.find((a) => a.id === adminId) ?? null;
+  const store = await getStore();
+  return store.getAdminById(adminId);
 }
 
 export async function requireAdmin(): Promise<

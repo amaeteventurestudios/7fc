@@ -12,8 +12,15 @@ federation, sponsor, or official brand.
 
 - Next.js (App Router) + TypeScript
 - Tailwind CSS v4
-- File-based JSON data store for local dev, with a Cloudflare D1 schema for production (`/migrations/0001_init.sql`)
+- **Cloudflare D1 in production** (via `@opennextjs/cloudflare` and the `DB` binding), JSON file store as the local-dev fallback
 - Generated WebP placeholder images (no PNG/JPEG anywhere)
+
+### Data layer
+
+All data access goes through the `Store` interface in `lib/data.ts`:
+
+- **Production (Cloudflare):** `lib/d1-store.ts` runs SQL against D1 through the `DB` binding. Detection is automatic — if the binding exists in the Cloudflare context, D1 is used.
+- **Local dev (`next dev`):** `lib/json-store.ts` uses a JSON file at `.data/db.json` (gitignored, auto-seeded). This fallback is for development only.
 
 ## Routes
 
@@ -49,11 +56,12 @@ Copy `.env.example` to `.env.local`:
 
 | Variable | Purpose |
 |---|---|
-| `SESSION_SECRET` | Signs admin session cookies. **Required in production.** |
+| `SESSION_SECRET` | Signs admin session cookies. **Required in production.** On Cloudflare: `npx wrangler secret put SESSION_SECRET`. |
+| `ADMIN_SETUP_MODE` | Set to `false` to force-disable the temporary-login button. Setup mode also ends permanently when the admin password is changed. |
+| `ADMIN_TEMP_EMAIL` / `ADMIN_TEMP_PASSWORD` | Optional overrides for the bootstrap admin (defaults `admin@7fc.net` / `ChangeMe-7FC-Now`). Set as Cloudflare secrets in production. |
 | `NEXT_PUBLIC_SITE_URL` | Canonical/OG URL (default `https://7fc.net`). |
-| `TEMP_ADMIN_EMAIL` / `TEMP_ADMIN_PASSWORD` | Optional overrides for the bootstrap admin. |
 
-No secrets are committed. Passwords are stored as scrypt hashes only.
+No secrets are committed. Passwords are stored as scrypt hashes only — never plaintext.
 
 ## Admin setup & temporary login
 
@@ -67,18 +75,45 @@ On first run the app is in **setup mode**:
 
 ## Cloudflare D1 setup
 
-The local JSON store (`lib/store.ts`) is a development fallback with the same
-shape as the D1 schema. To move to D1:
+The production database is already created and configured in `wrangler.toml`:
+
+| Setting | Value |
+|---|---|
+| Database name | `7fc-prod` |
+| Binding | `DB` |
+| Database ID | `747fcf59-7492-4b73-97ca-edad62806f27` |
+
+Exact setup steps:
 
 ```bash
-npx wrangler d1 create 7fc-db
-npx wrangler d1 migrations apply 7fc-db
+# 1. Authenticate wrangler (once)
+npx wrangler login
+
+# 2. Apply the schema migration (migrations/0001_init.sql)
+npm run db:migrate            # production (--remote)
+npm run db:migrate:local      # local wrangler D1 (for cf:preview testing)
+
+# 3. Seed defaults (temp admin, wall settings, legal disclaimers, 9 products)
+npm run db:seed               # production (--remote)
+npm run db:seed:local         # local wrangler D1
+
+# 4. Set production secrets
+npx wrangler secret put SESSION_SECRET
 ```
 
 Tables created by `migrations/0001_init.sql`: `admin_users`, `supporters`,
 `global_wall_settings`, `affiliate_products`, `legal_disclaimers`,
-`activity_log`, `affiliate_clicks`. Then replace the read/mutate functions in
-`lib/store.ts` with D1 queries (all data access goes through that one module).
+`activity_log`, `affiliate_clicks`.
+
+The seed script (`scripts/seed-d1.mjs`) is idempotent — it only inserts the
+temporary admin if no admin exists, and only inserts settings/legal/products
+that are missing. It hashes the temporary password with scrypt before writing
+(no plaintext is ever stored). Use `node scripts/seed-d1.mjs --print` to
+inspect the SQL without executing.
+
+Even without seeding, the D1 store self-heals: missing settings/legal keys
+fall back to defaults, and the temporary bootstrap admin is created on the
+first login-page request.
 
 ## Managing affiliate products
 
@@ -95,17 +130,22 @@ dimensions, section, description, and alt text. Export final art as WebP with
 the **same filename** and overwrite the file — no code changes needed.
 Regenerate placeholders anytime with `node scripts/generate-placeholders.mjs`.
 
-## Deploy
-
-Any Node host works out of the box:
+## Deploy (Cloudflare Workers via OpenNext)
 
 ```bash
-npm run build
-npm start
+npm run db:migrate     # apply migrations to 7fc-prod (once per new migration)
+npm run db:seed        # seed defaults (idempotent)
+npx wrangler secret put SESSION_SECRET
+npm run cf:deploy      # opennextjs-cloudflare build && deploy
 ```
 
-Set `SESSION_SECRET` and `NEXT_PUBLIC_SITE_URL` in the host's environment.
-For Cloudflare Pages/Workers, use `@cloudflare/next-on-pages` or OpenNext and
-bind the D1 database, swapping the store layer as described above. Note the
-JSON store needs a writable filesystem; on serverless hosts move to D1 (or
-another DB) before going live.
+`npm run cf:preview` builds and runs the Worker locally against wrangler's
+local D1 (use `db:migrate:local` + `db:seed:local` first) — this exercises
+the real D1 code path before deploying.
+
+After deploying, log in at `/admin/login` with the temporary credentials and
+immediately change them on `/admin/settings/security` — this permanently
+disables setup mode.
+
+The classic Node path (`npm run build && npm start`) still works and uses the
+JSON file store; it is intended for local development only.

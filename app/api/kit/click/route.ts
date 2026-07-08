@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { mutate, logActivity } from "@/lib/store";
+import { getStore } from "@/lib/data";
 import { rateLimit, clientIp } from "@/lib/request";
 
 export async function POST(req: NextRequest) {
@@ -13,12 +13,7 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
-  await mutate((db) => {
-    const product = db.affiliate_products.find((p) => p.id === productId);
-    if (product) {
-      product.click_count += 1;
-      logActivity(db, "affiliate_click", `Affiliate product clicked: ${product.title}`);
-    }
-  });
+  const store = await getStore();
+  await store.recordAffiliateClick(productId);
   return NextResponse.json({ ok: true });
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { mutate, logActivity } from "@/lib/store";
+import { getStore } from "@/lib/data";
 import { requireAdmin } from "@/lib/request";
 import { hashPassword, verifyPassword } from "@/lib/auth";
 
@@ -49,15 +49,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  await mutate((db) => {
-    const admin = db.admin_users.find((a) => a.id === auth.admin.id);
-    if (!admin) return;
-    if (new_email) admin.email = new_email;
-    if (new_password) admin.password_hash = hashPassword(new_password);
-    // Changing the password ends temporary setup mode.
-    if (new_password) admin.is_temporary = false;
-    admin.updated_at = new Date().toISOString();
-    logActivity(db, "credentials_changed", "Admin credentials updated");
+  const store = await getStore();
+  // Passwords are stored as scrypt hashes only; changing the password
+  // clears is_temporary and permanently disables setup mode.
+  await store.updateAdminCredentials(auth.admin.id, {
+    email: new_email || undefined,
+    passwordHash: new_password ? hashPassword(new_password) : undefined,
   });
   return NextResponse.json({ ok: true });
 }

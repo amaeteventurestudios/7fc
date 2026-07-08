@@ -1,0 +1,27 @@
+# Cloudflare configuration for 7FC (deployed via @opennextjs/cloudflare)
+name = "7fc"
+main = ".open-next/worker.js"
+compatibility_date = "2026-06-01"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+# Production D1 database — the app detects this binding at runtime and uses
+# the D1 store (lib/d1-store.ts). Without it, the local JSON fallback is used.
+[[d1_databases]]
+binding = "DB"
+database_name = "7fc-prod"
+database_id = "747fcf59-7492-4b73-97ca-edad62806f27"
+migrations_dir = "migrations"
+
+# Secrets (never commit values):
+#   npx wrangler secret put SESSION_SECRET
+# Optional overrides:
+#   npx wrangler secret put ADMIN_TEMP_EMAIL
+#   npx wrangler secret put ADMIN_TEMP_PASSWORD
+# Optional plain var: ADMIN_SETUP_MODE=false force-disables the temporary login button.
+# [vars]
+# ADMIN_SETUP_MODE = "true"
+# NEXT_PUBLIC_SITE_URL = "https://7fc.net"
