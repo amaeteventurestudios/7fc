@@ -1,0 +1,171 @@
+@import "tailwindcss";
+
+@theme {
+  --color-night: #05070f;
+  --color-navy: #0a1024;
+  --color-navy-2: #0d1530;
+  --color-gold: #d4af5e;
+  --color-gold-2: #f0d492;
+  --color-crimson: #c8102e;
+  --color-electric: #2b6cff;
+  --font-display: var(--font-cinzel), serif;
+  --font-body: var(--font-inter), sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-night);
+  color: #e8e6df;
+  font-family: var(--font-body);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* ---------- shared surfaces ---------- */
+.glass-card {
+  background: linear-gradient(160deg, rgba(16, 24, 52, 0.75), rgba(6, 9, 20, 0.85));
+  border: 1px solid rgba(212, 175, 94, 0.25);
+  backdrop-filter: blur(8px);
+  border-radius: 0.75rem;
+}
+.gold-text {
+  background: linear-gradient(180deg, #f5e2ae, #d4af5e 55%, #a67c2e);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.section-glow {
+  background:
+    radial-gradient(ellipse 60% 40% at 20% 0%, rgba(43, 108, 255, 0.08), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(200, 16, 46, 0.07), transparent);
+}
+
+/* ---------- animations ---------- */
+@keyframes lightSweep {
+  0% { transform: translateX(-120%) skewX(-18deg); }
+  100% { transform: translateX(320%) skewX(-18deg); }
+}
+.light-sweep {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.light-sweep::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 30%;
+  background: linear-gradient(90deg, transparent, rgba(240, 212, 146, 0.08), transparent);
+  animation: lightSweep 9s ease-in-out infinite;
+}
+
+@keyframes atmoShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+.atmosphere {
+  background: linear-gradient(
+    120deg,
+    rgba(43, 108, 255, 0.14),
+    rgba(5, 7, 15, 0) 35%,
+    rgba(200, 16, 46, 0.12) 65%,
+    rgba(212, 175, 94, 0.08)
+  );
+  background-size: 250% 250%;
+  animation: atmoShift 18s ease-in-out infinite;
+}
+
+@keyframes floatParticle {
+  0% { transform: translateY(0) translateX(0); opacity: 0; }
+  15% { opacity: 0.8; }
+  85% { opacity: 0.4; }
+  100% { transform: translateY(-90vh) translateX(4vw); opacity: 0; }
+}
+.particle {
+  position: absolute;
+  bottom: -2vh;
+  border-radius: 9999px;
+  animation: floatParticle linear infinite;
+  pointer-events: none;
+}
+
+@keyframes pulseNode {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 175, 94, 0.55); }
+  50% { box-shadow: 0 0 14px 5px rgba(212, 175, 94, 0.25); }
+}
+.pulse-node { animation: pulseNode 2.4s ease-in-out infinite; }
+
+@keyframes mapPulse {
+  0% { transform: scale(0.6); opacity: 0.9; }
+  70% { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+.map-pulse {
+  position: absolute;
+  border-radius: 9999px;
+  animation: mapPulse 2.8s ease-out infinite;
+}
+
+@keyframes tickerScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.ticker-track {
+  animation: tickerScroll 35s linear infinite;
+}
+.ticker-track:hover { animation-play-state: paused; }
+
+.cta-glow {
+  transition: box-shadow 0.3s ease, transform 0.2s ease;
+}
+.cta-glow:hover, .cta-glow:focus-visible {
+  box-shadow: 0 0 24px 2px rgba(200, 16, 46, 0.55);
+  transform: translateY(-1px);
+}
+.cta-gold-glow:hover, .cta-gold-glow:focus-visible {
+  box-shadow: 0 0 24px 2px rgba(212, 175, 94, 0.45);
+  transform: translateY(-1px);
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@keyframes cardEnter {
+  from { opacity: 0; transform: translateY(20px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.card-enter { animation: cardEnter 0.5s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .light-sweep::after,
+  .atmosphere,
+  .particle,
+  .pulse-node,
+  .map-pulse,
+  .ticker-track,
+  .card-enter {
+    animation: none !important;
+  }
+  .particle { display: none; }
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .cta-glow, .cta-gold-glow { transition: none; }
+}
