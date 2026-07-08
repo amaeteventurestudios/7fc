@@ -136,7 +136,7 @@ export function AboutFaqFooter({ legal }: { legal: LegalDisclaimers }) {
           {legal.footer_disclaimer}
         </p>
         <p className="text-[10px] text-gray-600 mt-3">
-          © {new Date().getFullYear()} 7FC.net · All rights reserved.
+          © {new Date().getFullYear()} SevenFC.net · All rights reserved.
         </p>
       </footer>
     </>

@@ -13,7 +13,7 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://7fc.net";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://sevenfc.net";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

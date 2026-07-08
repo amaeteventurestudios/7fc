@@ -222,6 +222,9 @@ export function GlobalWallForm({ settings }: { settings: GlobalWallSettings }) {
                 {result.status === "pending" &&
                   " Your entry will appear once it is approved."}
               </p>
+              <p className="text-[11px] tracking-[0.2em] uppercase text-gold/70 mt-4">
+                I raised my 7 on SevenFC.net
+              </p>
             </div>
           ) : closed ? (
             <div className="glass-card p-8 text-center">

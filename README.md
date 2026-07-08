@@ -59,7 +59,7 @@ Copy `.env.example` to `.env.local`:
 | `SESSION_SECRET` | Signs admin session cookies. **Required in production.** On Cloudflare: `npx wrangler secret put SESSION_SECRET`. |
 | `ADMIN_SETUP_MODE` | Set to `false` to force-disable the temporary-login button. Setup mode also ends permanently when the admin password is changed. |
 | `ADMIN_TEMP_EMAIL` / `ADMIN_TEMP_PASSWORD` | Optional overrides for the bootstrap admin (defaults `admin@7fc.net` / `ChangeMe-7FC-Now`). Set as Cloudflare secrets in production. |
-| `NEXT_PUBLIC_SITE_URL` | Canonical/OG URL (default `https://7fc.net`). |
+| `NEXT_PUBLIC_SITE_URL` | Canonical/OG URL (default `https://sevenfc.net`). |
 
 No secrets are committed. Passwords are stored as scrypt hashes only — never plaintext.
 
@@ -129,6 +129,17 @@ Every image lives in `/public/images/` and is documented in
 dimensions, section, description, and alt text. Export final art as WebP with
 the **same filename** and overwrite the file — no code changes needed.
 Regenerate placeholders anytime with `node scripts/generate-placeholders.mjs`.
+
+## Domain
+
+- **Primary public domain: `SevenFC.net`** (`https://sevenfc.net`) — used for
+  canonical URLs, Open Graph, and Twitter metadata (`NEXT_PUBLIC_SITE_URL`).
+- The public brand remains **7FC / Seven FC**; only the domain is SevenFC.net.
+- The Cloudflare Workers `*.workers.dev` subdomain can still be used for
+  testing/previews, but the final production custom domain should be
+  `sevenfc.net` (attach it to the Worker via Cloudflare → Workers → Custom
+  Domains). Do not use `7fc.net` — it is taken and is not this project's
+  domain.
 
 ## Deploy (Cloudflare Workers via OpenNext)
 

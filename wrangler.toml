@@ -24,4 +24,4 @@ migrations_dir = "migrations"
 # Optional plain var: ADMIN_SETUP_MODE=false force-disables the temporary login button.
 # [vars]
 # ADMIN_SETUP_MODE = "true"
-# NEXT_PUBLIC_SITE_URL = "https://7fc.net"
+# NEXT_PUBLIC_SITE_URL = "https://sevenfc.net"
