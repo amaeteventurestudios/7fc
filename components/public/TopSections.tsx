@@ -79,52 +79,52 @@ export function Hero() {
         />
         <div className="absolute inset-0 atmosphere opacity-40 mix-blend-screen" aria-hidden />
         <div
-          className="absolute inset-0 bg-gradient-to-r from-night via-night/60 to-transparent md:from-night md:via-night/40 md:to-transparent"
+          className="absolute inset-x-0 top-0 h-2/3 bg-gradient-to-b from-night via-night/50 to-transparent"
           aria-hidden
         />
         <div
-          className="absolute inset-0 bg-gradient-to-t from-night/80 via-transparent to-night/40"
+          className="absolute inset-0 bg-gradient-to-t from-night/80 via-transparent to-transparent"
           aria-hidden
         />
         <div className="light-sweep" aria-hidden />
         <Particles />
-        <div className="absolute inset-0 flex items-center">
+        <div className="absolute inset-0 flex flex-col items-center pt-10 sm:pt-12 md:pt-16 lg:pt-14">
           <div className="relative mx-auto w-full max-w-6xl px-4">
-            <div className="flex flex-col items-start text-left max-w-md md:max-w-lg">
-              <p className="text-xs md:text-sm tracking-[0.4em] uppercase text-electric mb-8 md:mb-10">
+            <div className="flex flex-col items-center text-center">
+              <p className="text-xs md:text-sm tracking-[0.4em] uppercase text-electric mb-6 md:mb-8">
                 Discipline. Standards. Greatness.
               </p>
               <div className="relative">
                 <span
-                  className="absolute left-[-0.1em] -top-8 md:-top-14 text-7xl md:text-[6.5rem] leading-none gold-text drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)] z-10"
+                  className="absolute left-1/2 -translate-x-1/2 -top-7 md:-top-11 text-6xl md:text-8xl leading-none gold-text drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)] z-10"
                   aria-hidden
                 >
                   &#9813;
                 </span>
-                <h1 className="font-display font-black gold-text text-6xl md:text-9xl leading-none drop-shadow-[0_4px_24px_rgba(0,0,0,0.8)]">
+                <h1 className="font-display font-black gold-text text-6xl md:text-8xl leading-none drop-shadow-[0_4px_24px_rgba(0,0,0,0.8)]">
                   7FC
                 </h1>
               </div>
               <p className="font-display tracking-[0.5em] text-gold-2 text-sm md:text-xl mt-3 uppercase">
                 Seven FC
               </p>
-              <h2 className="font-display text-xl md:text-4xl text-white mt-7 tracking-wide drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]">
+              <h2 className="font-display text-lg md:text-3xl text-white mt-5 md:mt-6 tracking-wide drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]">
                 The CR7 Legacy. Forever 7.
               </h2>
-              <p className="mt-5 max-w-md text-sm md:text-lg text-gray-300">
+              <p className="mt-4 max-w-xl text-xs md:text-base text-gray-300">
                 A global fan tribute to discipline, longevity, records, pressure,
                 reinvention, and the standard of the number 7.
               </p>
-              <div className="mt-8 flex flex-col sm:flex-row items-start justify-start gap-4 relative z-10">
+              <div className="mt-6 md:mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 md:gap-4 relative z-10">
                 <a
                   href="#wall"
-                  className="cta-glow bg-crimson text-white font-bold tracking-widest uppercase text-sm md:text-base px-9 py-3.5 rounded"
+                  className="cta-glow whitespace-nowrap bg-crimson text-white font-bold tracking-widest uppercase text-xs sm:text-sm md:text-base px-6 sm:px-8 md:px-9 py-3 md:py-3.5 rounded text-center"
                 >
                   Raise Your 7
                 </a>
                 <Link
                   href="/wall"
-                  className="cta-gold-glow border border-gold/60 text-gold-2 font-semibold tracking-widest uppercase text-sm md:text-base px-9 py-3.5 rounded"
+                  className="cta-gold-glow whitespace-nowrap bg-night/70 backdrop-blur-sm border border-gold/60 text-gold-2 font-semibold tracking-widest uppercase text-xs sm:text-sm md:text-base px-6 sm:px-8 md:px-9 py-3 md:py-3.5 rounded text-center"
                 >
                   See the Global 7 Wall
                 </Link>
