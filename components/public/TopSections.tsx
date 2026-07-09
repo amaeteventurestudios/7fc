@@ -94,17 +94,9 @@ export function Hero() {
               <p className="text-xs md:text-sm tracking-[0.4em] uppercase text-electric mb-6 md:mb-8">
                 Discipline. Standards. Greatness.
               </p>
-              <div className="relative">
-                <span
-                  className="absolute left-1/2 -translate-x-1/2 -top-7 md:-top-11 text-6xl md:text-8xl leading-none gold-text drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)] z-10"
-                  aria-hidden
-                >
-                  &#9813;
-                </span>
-                <h1 className="font-display font-black gold-text text-6xl md:text-8xl leading-none drop-shadow-[0_4px_24px_rgba(0,0,0,0.8)]">
-                  7FC
-                </h1>
-              </div>
+              <h1 className="font-display font-black gold-text text-6xl md:text-8xl leading-none drop-shadow-[0_4px_24px_rgba(0,0,0,0.8)]">
+                7FC
+              </h1>
               <p className="font-display tracking-[0.5em] text-gold-2 text-sm md:text-xl mt-3 uppercase">
                 Seven FC
               </p>
