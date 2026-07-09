@@ -131,7 +131,7 @@ export function Moments() {
               <div className="glass-card h-full overflow-hidden text-center hover:border-gold/60 hover:shadow-[0_0_24px_rgba(212,175,94,0.15)] transition-all">
                 <PlaceholderImg
                   src={m.img}
-                  alt={`Cinematic placeholder for ${m.title}`}
+                  alt={`Cinematic image for ${m.title}`}
                   className="w-full aspect-[4/3] object-cover"
                   label={m.title}
                 />
