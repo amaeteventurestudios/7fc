@@ -93,6 +93,15 @@ export function SiteFooter({ legal }: { legal: LegalDisclaimers }) {
       <p className="text-xs text-gray-400 mt-4">
         This is for the fans. This is for the legacy.
       </p>
+      {/* Social: X only — no Instagram/Facebook/YouTube/TikTok.
+          TODO: replace href="#" with the real 7FC X profile URL when available. */}
+      <a
+        href="#"
+        aria-label="7FC on X"
+        className="inline-flex items-center justify-center mt-5 w-9 h-9 rounded-full border border-gold/40 text-gold-2 text-sm hover:border-gold transition-colors"
+      >
+        𝕏
+      </a>
       <p className="text-[10px] text-gray-600 mt-4 max-w-3xl mx-auto leading-relaxed">
         {legal.footer_disclaimer}
       </p>

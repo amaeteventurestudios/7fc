@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { Reveal, SectionTitle, PlaceholderImg, CONTAINER } from "./ui";
 import { useEra } from "./EraContext";
 import { COUNTRIES, flagEmoji } from "@/lib/countries";
+import { formatPublicDate } from "@/lib/format";
 import { ERAS } from "@/lib/types";
 import type { GlobalWallSettings } from "@/lib/types";
 import type { PublicSupporter } from "@/lib/store";
@@ -44,7 +45,7 @@ export function SupporterCard({
       </p>
       {showDate && (
         <p className="text-[10px] text-gray-500 mt-1.5">
-          Raised {new Date(supporter.created_at).toLocaleDateString()}
+          Raised {formatPublicDate(supporter.created_at)}
         </p>
       )}
     </div>

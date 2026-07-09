@@ -10,6 +10,7 @@ import {
   type PublicSupporter,
 } from "./WallSections";
 import { flagEmoji } from "@/lib/countries";
+import { formatPublicDate } from "@/lib/format";
 import { ERAS, type GlobalWallSettings } from "@/lib/types";
 
 type SortKey = "latest" | "oldest" | "number" | "country";
@@ -117,7 +118,7 @@ export default function WallPageClient({
     ["Latest Country", latest?.country_name ?? "—"],
     [
       "Latest Raised",
-      latest ? new Date(latest.created_at).toLocaleDateString() : "—",
+      latest ? formatPublicDate(latest.created_at) : "—",
     ],
   ];
 
@@ -135,6 +136,18 @@ export default function WallPageClient({
           aria-hidden
         />
         <div className="absolute inset-0 bg-gradient-to-b from-night/50 via-night/70 to-night" aria-hidden />
+        {/* Mobile-only cinematic silhouette, masked so it never fights the headline */}
+        <div
+          aria-hidden
+          className="md:hidden absolute inset-x-0 bottom-0 top-1/4 opacity-20 bg-contain bg-bottom bg-no-repeat pointer-events-none"
+          style={{
+            backgroundImage: "url(/images/7fc-wall-hero-mobile.webp)",
+            maskImage:
+              "linear-gradient(to bottom, transparent, black 30%, black 75%, transparent)",
+            WebkitMaskImage:
+              "linear-gradient(to bottom, transparent, black 30%, black 75%, transparent)",
+          }}
+        />
         <Particles />
         <div className={`${CONTAINER} relative pt-14 pb-12 md:pt-24 md:pb-20`}>
           <h1 className="font-display text-3xl md:text-6xl font-black gold-text tracking-wide">

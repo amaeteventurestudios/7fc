@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Reveal, SectionTitle, CountUp, Particles, PlaceholderImg, CONTAINER } from "./ui";
+import MobileMenu from "./MobileMenu";
 
 export function DisclaimerBar({ text }: { text: string }) {
   return (
@@ -26,6 +27,7 @@ const NAV_LINKS = [
 export function Nav() {
   const pathname = usePathname();
   return (
+    <>
     <header className="sticky top-0 z-50 bg-night/85 backdrop-blur border-b border-gold/15">
       <div className={`${CONTAINER} flex items-center justify-between py-3`}>
         <Link href="/#top" className="flex items-baseline gap-2">
@@ -60,6 +62,8 @@ export function Nav() {
         </Link>
       </div>
     </header>
+    <MobileMenu />
+    </>
   );
 }
 

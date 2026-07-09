@@ -52,6 +52,7 @@ Legend — Launch: required for launch · State: `placeholder` until replaced wi
 | 41 | 7fc-kit-compression-socks.webp | /public/images/7fc-kit-compression-socks.webp | 640x420 | 7FC Kit | Compression socks product category placeholder | Compression Socks — product category placeholder | Yes | placeholder |
 | 42 | 7fc-kit-captain-armband.webp | /public/images/7fc-kit-captain-armband.webp | 640x420 | 7FC Kit | Captain armband product category placeholder | Captain Armband — product category placeholder | Yes | placeholder |
 | 43 | 7fc-kit-stretching-strap.webp | /public/images/7fc-kit-stretching-strap.webp | 640x420 | 7FC Kit | Stretching strap product category placeholder | Stretching Strap — product category placeholder | Yes | placeholder |
+| 44 | 7fc-wall-hero-mobile.webp | /public/images/7fc-wall-hero-mobile.webp | 900x1200 | Global 7 Wall page hero (mobile) | Generic number 7 player silhouette for the mobile wall hero — no Ronaldo likeness, no club kit, no official logo | Silhouette of a generic number 7 football player under stadium lights | Yes | placeholder |
 
 ## Regenerating placeholders
 

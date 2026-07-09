@@ -53,6 +53,7 @@ export const ASSETS = [
   { file: "7fc-kit-compression-socks.webp", w: 640, h: 420, section: "7FC Kit", desc: "Compression socks" },
   { file: "7fc-kit-captain-armband.webp", w: 640, h: 420, section: "7FC Kit", desc: "Captain armband" },
   { file: "7fc-kit-stretching-strap.webp", w: 640, h: 420, section: "7FC Kit", desc: "Stretching strap" },
+  { file: "7fc-wall-hero-mobile.webp", w: 900, h: 1200, section: "Global 7 Wall page hero (mobile)", desc: "Generic number 7 player silhouette" },
 ];
 
 function esc(s) {
