@@ -148,6 +148,25 @@ export default function WallPageClient({
               "linear-gradient(to bottom, transparent, black 30%, black 75%, transparent)",
           }}
         />
+        {/* Desktop-only left/right silhouettes, faded toward center so they never fight the headline */}
+        <div
+          aria-hidden
+          className="hidden md:block absolute inset-y-0 left-0 w-1/3 lg:w-1/4 opacity-20 bg-contain bg-left bg-no-repeat pointer-events-none"
+          style={{
+            backgroundImage: "url(/images/7fc-wall-hero-left.webp)",
+            maskImage: "linear-gradient(to right, black 45%, transparent)",
+            WebkitMaskImage: "linear-gradient(to right, black 45%, transparent)",
+          }}
+        />
+        <div
+          aria-hidden
+          className="hidden md:block absolute inset-y-0 right-0 w-1/3 lg:w-1/4 opacity-20 bg-contain bg-right bg-no-repeat pointer-events-none"
+          style={{
+            backgroundImage: "url(/images/7fc-wall-hero-right.webp)",
+            maskImage: "linear-gradient(to left, black 45%, transparent)",
+            WebkitMaskImage: "linear-gradient(to left, black 45%, transparent)",
+          }}
+        />
         <Particles />
         <div className={`${CONTAINER} relative pt-14 pb-12 md:pt-24 md:pb-20`}>
           <h1 className="font-display text-3xl md:text-6xl font-black gold-text tracking-wide">
@@ -380,6 +399,17 @@ export default function WallPageClient({
       {/* CTA banner */}
       <section className="relative overflow-hidden border-t border-gold/15">
         <div className="absolute inset-0 atmosphere" aria-hidden />
+        <div
+          aria-hidden
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-72 md:w-[28rem] opacity-10 pointer-events-none"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/7fc-wall-cta-seven.webp"
+            alt=""
+            className="w-full h-full object-contain"
+          />
+        </div>
         <div className="light-sweep" aria-hidden />
         <div className="relative mx-auto max-w-4xl px-4 py-16 md:py-28 text-center">
           <p className="font-display text-2xl md:text-4xl text-white font-bold leading-snug">

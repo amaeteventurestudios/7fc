@@ -28,7 +28,7 @@ export function Journey() {
               <div className="flex flex-col items-center text-center px-2">
                 <PlaceholderImg
                   src={j.img}
-                  alt={`Generic crest placeholder for the ${j.name} era`}
+                  alt={`Generic tribute crest for the ${j.name} era`}
                   className="w-20 h-20 md:w-28 md:h-28 rounded-full border-2 border-gold/40 object-cover shadow-[0_0_20px_rgba(212,175,94,0.15)]"
                   label={j.name}
                 />
@@ -212,6 +212,12 @@ export function QuoteBanner() {
         <p className="mt-6 text-crimson text-xs md:text-base tracking-[0.35em] uppercase font-semibold">
           Focus. Work. Believe. Repeat.
         </p>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/7fc-signature-mark.webp"
+          alt="Abstract gold signature-style decorative mark"
+          className="mx-auto mt-8 w-32 md:w-48 opacity-70"
+        />
       </div>
     </section>
   );
