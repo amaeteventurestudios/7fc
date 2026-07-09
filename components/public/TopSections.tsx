@@ -69,59 +69,68 @@ export function Nav() {
 
 export function Hero() {
   return (
-    <section id="top" className="relative overflow-hidden text-center">
-      <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url(/images/7fc-hero-stadium-bg.webp)" }}
-        aria-hidden
-      />
-      <div className="absolute inset-0 atmosphere opacity-60" aria-hidden />
-      <div
-        className="absolute inset-0 bg-gradient-to-b from-night/70 via-night/50 to-night"
-        aria-hidden
-      />
-      <div
-        className="absolute inset-0 bg-gradient-to-t from-night via-night/20 to-transparent"
-        aria-hidden
-      />
-      <div className="light-sweep" aria-hidden />
-      <Particles />
-      <div className="relative mx-auto max-w-6xl px-4 pt-16 pb-20 md:pt-28 md:pb-32 flex flex-col items-center">
-        <p className="text-xs md:text-sm tracking-[0.4em] uppercase text-electric mb-4">
-          Discipline. Standards. Greatness.
-        </p>
-        <span
-          className="text-3xl md:text-5xl leading-none gold-text drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]"
+    <section id="top" className="relative overflow-hidden text-center bg-night">
+      <div className="relative w-full min-h-[640px] lg:min-h-0 lg:aspect-[1672/941]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/7fc-hero-stadium-bg.webp"
+          alt="Cinematic stadium tunnel with a generic number 7 player under red, blue, and gold lights"
+          className="absolute inset-0 h-full w-full object-cover lg:object-contain object-center"
+        />
+        <div className="absolute inset-0 atmosphere opacity-40 mix-blend-screen" aria-hidden />
+        <div
+          className="absolute inset-0 bg-gradient-to-r from-night via-night/60 to-transparent md:from-night md:via-night/40 md:to-transparent"
           aria-hidden
-        >
-          &#9813;
-        </span>
-        <h1 className="font-display font-black gold-text text-6xl md:text-9xl leading-none drop-shadow-[0_4px_24px_rgba(0,0,0,0.8)] -mt-1 md:-mt-3">
-          7FC
-        </h1>
-        <p className="font-display tracking-[0.5em] text-gold-2 text-sm md:text-xl mt-3 uppercase">
-          Seven FC
-        </p>
-        <h2 className="font-display text-xl md:text-4xl text-white mt-7 tracking-wide drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]">
-          The CR7 Legacy. Forever 7.
-        </h2>
-        <p className="mt-5 max-w-2xl text-sm md:text-lg text-gray-300">
-          A global fan tribute to discipline, longevity, records, pressure,
-          reinvention, and the standard of the number 7.
-        </p>
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10">
-          <a
-            href="#wall"
-            className="cta-glow bg-crimson text-white font-bold tracking-widest uppercase text-sm md:text-base px-9 py-3.5 rounded"
-          >
-            Raise Your 7
-          </a>
-          <Link
-            href="/wall"
-            className="cta-gold-glow border border-gold/60 text-gold-2 font-semibold tracking-widest uppercase text-sm md:text-base px-9 py-3.5 rounded"
-          >
-            See the Global 7 Wall
-          </Link>
+        />
+        <div
+          className="absolute inset-0 bg-gradient-to-t from-night/80 via-transparent to-night/40"
+          aria-hidden
+        />
+        <div className="light-sweep" aria-hidden />
+        <Particles />
+        <div className="absolute inset-0 flex items-center">
+          <div className="relative mx-auto w-full max-w-6xl px-4">
+            <div className="flex flex-col items-start text-left max-w-md md:max-w-lg">
+              <p className="text-xs md:text-sm tracking-[0.4em] uppercase text-electric mb-8 md:mb-10">
+                Discipline. Standards. Greatness.
+              </p>
+              <div className="relative">
+                <span
+                  className="absolute left-[-0.1em] -top-8 md:-top-14 text-7xl md:text-[6.5rem] leading-none gold-text drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)] z-10"
+                  aria-hidden
+                >
+                  &#9813;
+                </span>
+                <h1 className="font-display font-black gold-text text-6xl md:text-9xl leading-none drop-shadow-[0_4px_24px_rgba(0,0,0,0.8)]">
+                  7FC
+                </h1>
+              </div>
+              <p className="font-display tracking-[0.5em] text-gold-2 text-sm md:text-xl mt-3 uppercase">
+                Seven FC
+              </p>
+              <h2 className="font-display text-xl md:text-4xl text-white mt-7 tracking-wide drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]">
+                The CR7 Legacy. Forever 7.
+              </h2>
+              <p className="mt-5 max-w-md text-sm md:text-lg text-gray-300">
+                A global fan tribute to discipline, longevity, records, pressure,
+                reinvention, and the standard of the number 7.
+              </p>
+              <div className="mt-8 flex flex-col sm:flex-row items-start justify-start gap-4 relative z-10">
+                <a
+                  href="#wall"
+                  className="cta-glow bg-crimson text-white font-bold tracking-widest uppercase text-sm md:text-base px-9 py-3.5 rounded"
+                >
+                  Raise Your 7
+                </a>
+                <Link
+                  href="/wall"
+                  className="cta-gold-glow border border-gold/60 text-gold-2 font-semibold tracking-widest uppercase text-sm md:text-base px-9 py-3.5 rounded"
+                >
+                  See the Global 7 Wall
+                </Link>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
