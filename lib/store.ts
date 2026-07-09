@@ -44,6 +44,10 @@ export const DEFAULT_SETTINGS: GlobalWallSettings = {
   allow_full_names: true,
   show_favorite_era: true,
   emergency_lock: false,
+  founding_slots_enabled: true,
+  founding_slot_target: 777,
+  homepage_preview_count: 8,
+  wall_page_size: 24,
 };
 
 export const DEFAULT_LEGAL: LegalDisclaimers = {
@@ -71,6 +75,12 @@ const KIT_PRODUCTS: Array<
   { title: "Recovery Roller", category: "Recovery", image_path: "/images/7fc-kit-recovery-roller.webp", description: "Longevity is a skill. Recover like it matters — because it does." },
   { title: "Water Bottle", category: "Hydration", image_path: "/images/7fc-kit-water-bottle.webp", description: "Fuel the work. Hydration is part of the standard." },
   { title: "Gym Bag", category: "Essentials", image_path: "/images/7fc-kit-gym-bag.webp", description: "Everything you need for the sessions nobody sees." },
+  { title: "Speed Hurdles", category: "Training", image_path: "/images/7fc-kit-speed-hurdles.webp", description: "Build the first-step burst that separates good from great." },
+  { title: "Training Bibs", category: "Training", image_path: "/images/7fc-kit-training-bibs.webp", description: "Small-sided games, full-sized intensity. Gear for the group session." },
+  { title: "Ball Pump", category: "Essentials", image_path: "/images/7fc-kit-ball-pump.webp", description: "A flat ball never made anyone better. Stay ready." },
+  { title: "Compression Socks", category: "Recovery", image_path: "/images/7fc-kit-compression-socks.webp", description: "Support the legs that do the work, session after session." },
+  { title: "Captain Armband", category: "Essentials", image_path: "/images/7fc-kit-captain-armband.webp", description: "Leadership is a standard you wear. Set the tone." },
+  { title: "Stretching Strap", category: "Recovery", image_path: "/images/7fc-kit-stretching-strap.webp", description: "Flexibility is longevity. Stretch like it's part of the job." },
 ];
 
 function seedDb(): Database {
@@ -174,17 +184,27 @@ export function logActivity(
   db.activity_log = db.activity_log.slice(0, 200);
 }
 
+/**
+ * Public projection of a supporter. Never includes email or message.
+ * Full last name only when the supporter opted in and the setting allows;
+ * otherwise a last initial (if any) is shown.
+ */
 export function publicSupporterView(s: Supporter, settings: GlobalWallSettings) {
+  const showFull = settings.allow_full_names && s.show_full_name;
   return {
     supporter_number: s.supporter_number,
     first_name: s.first_name,
-    last_name:
-      settings.allow_full_names && s.show_full_name ? s.last_name : null,
+    last_name: showFull ? s.last_name : null,
+    last_initial:
+      !showFull && s.last_name ? `${s.last_name[0].toUpperCase()}.` : null,
     country_name: s.country_name,
     country_code: s.country_code,
     favorite_era: settings.show_favorite_era ? s.favorite_era : null,
+    created_at: s.created_at,
   };
 }
+
+export type PublicSupporter = ReturnType<typeof publicSupporterView>;
 
 export function isSetupMode(db: Database): boolean {
   return db.admin_users.some((a) => a.is_temporary);

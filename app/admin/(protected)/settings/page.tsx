@@ -14,7 +14,14 @@ const LABELS: Array<[keyof GlobalWallSettings, string, string?]> = [
   ["allow_fan_messages", "Allow fan messages"],
   ["allow_full_names", "Allow full names"],
   ["show_favorite_era", "Show favorite era"],
+  ["founding_slots_enabled", "Founding slots (fill empty wall slots with open-slot CTAs)"],
   ["emergency_lock", "Emergency lock submissions", "danger"],
+];
+
+const NUMBER_FIELDS: Array<[keyof GlobalWallSettings, string]> = [
+  ["founding_slot_target", "Founding slot target"],
+  ["homepage_preview_count", "Homepage supporter preview count"],
+  ["wall_page_size", "Wall page size"],
 ];
 
 export default function WallSettingsPage() {
@@ -28,9 +35,7 @@ export default function WallSettingsPage() {
       .catch(() => {});
   }, []);
 
-  async function toggle(key: keyof GlobalWallSettings) {
-    if (!settings) return;
-    const next = { ...settings, [key]: !settings[key] };
+  async function save(next: GlobalWallSettings) {
     setSettings(next);
     await fetch("/api/admin/settings", {
       method: "PUT",
@@ -39,6 +44,11 @@ export default function WallSettingsPage() {
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 1500);
+  }
+
+  function toggle(key: keyof GlobalWallSettings) {
+    if (!settings) return;
+    save({ ...settings, [key]: !settings[key] });
   }
 
   return (
@@ -59,7 +69,7 @@ export default function WallSettingsPage() {
                 </span>
                 <button
                   role="switch"
-                  aria-checked={settings[key]}
+                  aria-checked={!!settings[key]}
                   onClick={() => toggle(key)}
                   className={`relative w-11 h-6 rounded-full transition-colors ${
                     settings[key]
@@ -75,6 +85,28 @@ export default function WallSettingsPage() {
                     }`}
                   />
                 </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </AdminCard>
+      <AdminCard title="Display Counts">
+        {settings && (
+          <ul className="divide-y divide-gray-800">
+            {NUMBER_FIELDS.map(([key, label]) => (
+              <li key={key} className="flex items-center justify-between py-3 gap-4">
+                <span className="text-sm text-gray-300">{label}</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={10000}
+                  value={Number(settings[key])}
+                  onChange={(e) =>
+                    setSettings({ ...settings, [key]: Number(e.target.value) })
+                  }
+                  onBlur={() => save(settings)}
+                  className="w-24 bg-night border border-gray-700 rounded px-2 py-1.5 text-sm text-white text-center focus:border-gold focus:outline-none"
+                />
               </li>
             ))}
           </ul>

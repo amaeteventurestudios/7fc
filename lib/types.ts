@@ -35,7 +35,18 @@ export interface GlobalWallSettings {
   allow_full_names: boolean;
   show_favorite_era: boolean;
   emergency_lock: boolean;
+  founding_slots_enabled: boolean;
+  founding_slot_target: number;
+  homepage_preview_count: number;
+  wall_page_size: number;
 }
+
+/** Numeric (non-boolean) settings keys, stored as integers in D1. */
+export const NUMERIC_SETTINGS = [
+  "founding_slot_target",
+  "homepage_preview_count",
+  "wall_page_size",
+] as const satisfies ReadonlyArray<keyof GlobalWallSettings>;
 
 export interface AffiliateProduct {
   id: string;

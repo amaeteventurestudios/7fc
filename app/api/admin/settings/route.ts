@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStore } from "@/lib/data";
 import { requireAdmin } from "@/lib/request";
-import type { GlobalWallSettings } from "@/lib/types";
+import { NUMERIC_SETTINGS, type GlobalWallSettings } from "@/lib/types";
 
-const KEYS: Array<keyof GlobalWallSettings> = [
+const BOOL_KEYS: Array<keyof GlobalWallSettings> = [
   "enable_submissions",
   "require_manual_approval",
   "show_supporter_count",
@@ -14,6 +14,7 @@ const KEYS: Array<keyof GlobalWallSettings> = [
   "allow_full_names",
   "show_favorite_era",
   "emergency_lock",
+  "founding_slots_enabled",
 ];
 
 export async function GET() {
@@ -32,11 +33,17 @@ export async function PUT(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
-  const patch: Partial<GlobalWallSettings> = {};
-  for (const key of KEYS) {
+  const patch: Record<string, boolean | number> = {};
+  for (const key of BOOL_KEYS) {
     if (typeof body[key] === "boolean") patch[key] = body[key] as boolean;
   }
+  for (const key of NUMERIC_SETTINGS) {
+    const v = Number(body[key]);
+    if (Number.isFinite(v)) patch[key] = Math.min(Math.max(Math.round(v), 0), 10000);
+  }
   const store = await getStore();
-  const settings = await store.updateSettings(patch);
+  const settings = await store.updateSettings(
+    patch as Partial<GlobalWallSettings>
+  );
   return NextResponse.json({ settings });
 }

@@ -2,6 +2,13 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+/**
+ * Shared page container: near-full width on mobile/tablet, wide cinematic
+ * max-width on desktop so content never feels trapped in a narrow box.
+ */
+export const CONTAINER =
+  "mx-auto w-full max-w-[94vw] md:max-w-[92vw] xl:max-w-[1600px] px-2 sm:px-4";
+
 export function Reveal({
   children,
   className = "",
@@ -42,14 +49,14 @@ export function SectionTitle({
   kicker?: string;
 }) {
   return (
-    <div className="text-center mb-8 md:mb-12">
+    <div className="text-center mb-10 md:mb-14">
       {kicker && (
-        <p className="text-xs tracking-[0.3em] uppercase text-electric/80 mb-2">{kicker}</p>
+        <p className="text-xs md:text-sm tracking-[0.3em] uppercase text-electric/80 mb-3">{kicker}</p>
       )}
-      <h2 className="font-display text-2xl md:text-4xl font-bold tracking-wide gold-text">
+      <h2 className="font-display text-2xl md:text-5xl font-bold tracking-wide gold-text">
         {children}
       </h2>
-      <div className="mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-gold to-transparent" />
+      <div className="mx-auto mt-5 h-px w-32 md:w-48 bg-gradient-to-r from-transparent via-gold to-transparent" />
     </div>
   );
 }

@@ -47,6 +47,12 @@ export const ASSETS = [
   { file: "7fc-kit-recovery-roller.webp", w: 640, h: 420, section: "7FC Kit", desc: "Recovery roller" },
   { file: "7fc-kit-water-bottle.webp", w: 640, h: 420, section: "7FC Kit", desc: "Water bottle" },
   { file: "7fc-kit-gym-bag.webp", w: 640, h: 420, section: "7FC Kit", desc: "Gym bag" },
+  { file: "7fc-kit-speed-hurdles.webp", w: 640, h: 420, section: "7FC Kit", desc: "Speed hurdles" },
+  { file: "7fc-kit-training-bibs.webp", w: 640, h: 420, section: "7FC Kit", desc: "Training bibs" },
+  { file: "7fc-kit-ball-pump.webp", w: 640, h: 420, section: "7FC Kit", desc: "Ball pump" },
+  { file: "7fc-kit-compression-socks.webp", w: 640, h: 420, section: "7FC Kit", desc: "Compression socks" },
+  { file: "7fc-kit-captain-armband.webp", w: 640, h: 420, section: "7FC Kit", desc: "Captain armband" },
+  { file: "7fc-kit-stretching-strap.webp", w: 640, h: 420, section: "7FC Kit", desc: "Stretching strap" },
 ];
 
 function esc(s) {

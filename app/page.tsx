@@ -33,10 +33,16 @@ export default async function HomePage() {
   const { settings, legal, products, approved } = await store.getPublicHome();
   const latest = [...approved]
     .sort((a, b) => b.supporter_number - a.supporter_number)
-    .slice(0, 12)
     .map((s) => publicSupporterView(s, settings));
   const countryCount = new Set(approved.map((s) => s.country_code)).size;
   const latestCountry = latest[0]?.country_name ?? null;
+  const eraCounts = new Map<string, number>();
+  for (const s of approved) {
+    if (s.favorite_era)
+      eraCounts.set(s.favorite_era, (eraCounts.get(s.favorite_era) ?? 0) + 1);
+  }
+  const topEra =
+    [...eraCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 
   return (
     <EraProvider>
@@ -56,6 +62,7 @@ export default async function HomePage() {
           countryCount={countryCount}
           supporterCount={approved.length}
           latestCountry={latestCountry}
+          topEra={topEra}
           settings={settings}
         />
         <LatestSupporters supporters={latest} settings={settings} />

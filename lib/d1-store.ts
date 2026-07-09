@@ -19,6 +19,7 @@ import type {
 } from "./data";
 import { ADMIN_TEMP_EMAIL, ADMIN_TEMP_PASSWORD } from "./data";
 import { DEFAULT_SETTINGS, DEFAULT_LEGAL } from "./store";
+import { NUMERIC_SETTINGS } from "./types";
 import { hashPassword } from "./auth";
 import type {
   Supporter,
@@ -82,23 +83,24 @@ export class D1Store implements Store {
     const { results } = await this.db
       .prepare("SELECT key, value FROM global_wall_settings")
       .all<{ key: string; value: number }>();
-    const settings = { ...DEFAULT_SETTINGS };
+    const settings: GlobalWallSettings = { ...DEFAULT_SETTINGS };
+    const numeric = new Set<string>(NUMERIC_SETTINGS);
     for (const row of results) {
-      if (row.key in settings) {
-        settings[row.key as keyof GlobalWallSettings] = !!row.value;
-      }
+      if (!(row.key in settings)) continue;
+      const target = settings as unknown as Record<string, boolean | number>;
+      target[row.key] = numeric.has(row.key) ? row.value : !!row.value;
     }
     return settings;
   }
 
   async updateSettings(patch: Partial<GlobalWallSettings>) {
     for (const [key, value] of Object.entries(patch)) {
-      if (typeof value !== "boolean") continue;
+      if (typeof value !== "boolean" && typeof value !== "number") continue;
       await this.db
         .prepare(
           "INSERT INTO global_wall_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
         )
-        .bind(key, value ? 1 : 0)
+        .bind(key, typeof value === "number" ? Math.round(value) : value ? 1 : 0)
         .run();
     }
     await this.log("settings_changed", "Global Wall settings updated");

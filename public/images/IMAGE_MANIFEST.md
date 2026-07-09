@@ -46,6 +46,12 @@ Legend — Launch: required for launch · State: `placeholder` until replaced wi
 | 35 | 7fc-kit-recovery-roller.webp | /public/images/7fc-kit-recovery-roller.webp | 640x420 | 7FC Kit | Recovery roller / mobility tools placeholder | Recovery Roller — product category placeholder | Yes | placeholder |
 | 36 | 7fc-kit-water-bottle.webp | /public/images/7fc-kit-water-bottle.webp | 640x420 | 7FC Kit | Water bottle and hydration placeholder | Water Bottle — product category placeholder | Yes | placeholder |
 | 37 | 7fc-kit-gym-bag.webp | /public/images/7fc-kit-gym-bag.webp | 640x420 | 7FC Kit | Gym bag / training essentials placeholder | Gym Bag — product category placeholder | Yes | placeholder |
+| 38 | 7fc-kit-speed-hurdles.webp | /public/images/7fc-kit-speed-hurdles.webp | 640x420 | 7FC Kit | Speed hurdles product category placeholder | Speed Hurdles — product category placeholder | Yes | placeholder |
+| 39 | 7fc-kit-training-bibs.webp | /public/images/7fc-kit-training-bibs.webp | 640x420 | 7FC Kit | Training bibs product category placeholder | Training Bibs — product category placeholder | Yes | placeholder |
+| 40 | 7fc-kit-ball-pump.webp | /public/images/7fc-kit-ball-pump.webp | 640x420 | 7FC Kit | Ball pump product category placeholder | Ball Pump — product category placeholder | Yes | placeholder |
+| 41 | 7fc-kit-compression-socks.webp | /public/images/7fc-kit-compression-socks.webp | 640x420 | 7FC Kit | Compression socks product category placeholder | Compression Socks — product category placeholder | Yes | placeholder |
+| 42 | 7fc-kit-captain-armband.webp | /public/images/7fc-kit-captain-armband.webp | 640x420 | 7FC Kit | Captain armband product category placeholder | Captain Armband — product category placeholder | Yes | placeholder |
+| 43 | 7fc-kit-stretching-strap.webp | /public/images/7fc-kit-stretching-strap.webp | 640x420 | 7FC Kit | Stretching strap product category placeholder | Stretching Strap — product category placeholder | Yes | placeholder |
 
 ## Regenerating placeholders
 

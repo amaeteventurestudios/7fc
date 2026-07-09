@@ -1,6 +1,6 @@
 "use client";
 
-import { Reveal, SectionTitle, PlaceholderImg } from "./ui";
+import { Reveal, SectionTitle, PlaceholderImg, CONTAINER } from "./ui";
 import type { AffiliateProduct, LegalDisclaimers } from "@/lib/types";
 
 export function KitSection({
@@ -20,15 +20,15 @@ export function KitSection({
     }).catch(() => {});
   }
   return (
-    <section id="kit" className="py-16 md:py-24 px-4 border-t border-gold/15">
-      <div className="mx-auto max-w-6xl">
+    <section id="kit" className="py-16 md:py-28 border-t border-gold/15">
+      <div className={CONTAINER}>
         <SectionTitle>The 7FC Kit</SectionTitle>
-        <p className="text-center text-sm text-gray-300 max-w-xl mx-auto">
+        <p className="text-center text-sm md:text-lg text-gray-300 max-w-2xl mx-auto">
           Books, training tools, recovery gear, and football essentials for
           fans of greatness.
         </p>
-        <p className="text-center text-[11px] text-gray-500 mt-3">{disclosure}</p>
-        <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <p className="text-center text-[11px] md:text-xs text-gray-500 mt-3">{disclosure}</p>
+        <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-5">
           {products.map((p, i) => (
             <Reveal key={p.id} delay={i * 60}>
               <div className="glass-card h-full overflow-hidden text-center flex flex-col hover:border-gold/50 transition-colors">
@@ -85,11 +85,29 @@ const FAQ = [
   },
 ];
 
+export function SiteFooter({ legal }: { legal: LegalDisclaimers }) {
+  return (
+    <footer className="border-t border-gold/15 py-10 px-4 text-center">
+      <p className="font-display text-2xl font-black gold-text">7FC</p>
+      <p className="text-[10px] tracking-[0.35em] uppercase text-gold/60 mt-1">Seven FC</p>
+      <p className="text-xs text-gray-400 mt-4">
+        This is for the fans. This is for the legacy.
+      </p>
+      <p className="text-[10px] text-gray-600 mt-4 max-w-3xl mx-auto leading-relaxed">
+        {legal.footer_disclaimer}
+      </p>
+      <p className="text-[10px] text-gray-600 mt-3">
+        © {new Date().getFullYear()} SevenFC.net · All rights reserved.
+      </p>
+    </footer>
+  );
+}
+
 export function AboutFaqFooter({ legal }: { legal: LegalDisclaimers }) {
   return (
     <>
-      <section id="about" className="section-glow py-16 md:py-24 px-4 border-t border-gold/15">
-        <div className="mx-auto max-w-6xl grid md:grid-cols-3 gap-6">
+      <section id="about" className="section-glow py-16 md:py-28 border-t border-gold/15">
+        <div className={`${CONTAINER} grid md:grid-cols-3 gap-6 lg:gap-8`}>
           <Reveal>
             <div className="glass-card h-full p-6 text-center md:text-left">
               <h3 className="font-display text-lg font-bold gold-text text-center">About 7FC</h3>
@@ -126,19 +144,7 @@ export function AboutFaqFooter({ legal }: { legal: LegalDisclaimers }) {
           </Reveal>
         </div>
       </section>
-      <footer className="border-t border-gold/15 py-10 px-4 text-center">
-        <p className="font-display text-2xl font-black gold-text">7FC</p>
-        <p className="text-[10px] tracking-[0.35em] uppercase text-gold/60 mt-1">Seven FC</p>
-        <p className="text-xs text-gray-400 mt-4">
-          This is for the fans. This is for the legacy.
-        </p>
-        <p className="text-[10px] text-gray-600 mt-4 max-w-2xl mx-auto leading-relaxed">
-          {legal.footer_disclaimer}
-        </p>
-        <p className="text-[10px] text-gray-600 mt-3">
-          © {new Date().getFullYear()} SevenFC.net · All rights reserved.
-        </p>
-      </footer>
+      <SiteFooter legal={legal} />
     </>
   );
 }

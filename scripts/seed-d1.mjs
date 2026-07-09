@@ -46,6 +46,10 @@ const SETTINGS = {
   allow_full_names: 1,
   show_favorite_era: 1,
   emergency_lock: 0,
+  founding_slots_enabled: 1,
+  founding_slot_target: 777,
+  homepage_preview_count: 8,
+  wall_page_size: 24,
 };
 
 const LEGAL = {
@@ -71,6 +75,12 @@ const PRODUCTS = [
   ["Recovery Roller", "Recovery", "/images/7fc-kit-recovery-roller.webp", "Longevity is a skill. Recover like it matters — because it does."],
   ["Water Bottle", "Hydration", "/images/7fc-kit-water-bottle.webp", "Fuel the work. Hydration is part of the standard."],
   ["Gym Bag", "Essentials", "/images/7fc-kit-gym-bag.webp", "Everything you need for the sessions nobody sees."],
+  ["Speed Hurdles", "Training", "/images/7fc-kit-speed-hurdles.webp", "Build the first-step burst that separates good from great."],
+  ["Training Bibs", "Training", "/images/7fc-kit-training-bibs.webp", "Small-sided games, full-sized intensity. Gear for the group session."],
+  ["Ball Pump", "Essentials", "/images/7fc-kit-ball-pump.webp", "A flat ball never made anyone better. Stay ready."],
+  ["Compression Socks", "Recovery", "/images/7fc-kit-compression-socks.webp", "Support the legs that do the work, session after session."],
+  ["Captain Armband", "Essentials", "/images/7fc-kit-captain-armband.webp", "Leadership is a standard you wear. Set the tone."],
+  ["Stretching Strap", "Recovery", "/images/7fc-kit-stretching-strap.webp", "Flexibility is longevity. Stretch like it's part of the job."],
 ];
 
 const now = new Date().toISOString();
