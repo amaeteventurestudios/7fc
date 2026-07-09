@@ -70,45 +70,40 @@ export function Nav() {
 export function Hero() {
   return (
     <section id="top" className="relative overflow-hidden text-center">
-      <div className="absolute inset-0 atmosphere" aria-hidden />
       <div
-        className="absolute inset-0 opacity-40 bg-cover bg-center"
+        className="absolute inset-0 bg-cover bg-center"
         style={{ backgroundImage: "url(/images/7fc-hero-stadium-bg.webp)" }}
         aria-hidden
       />
-      <div className="absolute inset-0 bg-gradient-to-b from-night/40 via-night/60 to-night" aria-hidden />
+      <div className="absolute inset-0 atmosphere opacity-60" aria-hidden />
+      <div
+        className="absolute inset-0 bg-gradient-to-b from-night/70 via-night/50 to-night"
+        aria-hidden
+      />
+      <div
+        className="absolute inset-0 bg-gradient-to-t from-night via-night/20 to-transparent"
+        aria-hidden
+      />
       <div className="light-sweep" aria-hidden />
       <Particles />
-      <div className="relative mx-auto max-w-6xl px-4 pt-16 pb-20 md:pt-32 md:pb-36 flex flex-col items-center">
+      <div className="relative mx-auto max-w-6xl px-4 pt-16 pb-0 md:pt-28 flex flex-col items-center">
         <p className="text-xs md:text-sm tracking-[0.4em] uppercase text-electric mb-4">
           Discipline. Standards. Greatness.
         </p>
-        <h1 className="font-display font-black gold-text text-6xl md:text-9xl leading-none">
+        <h1 className="font-display font-black gold-text text-6xl md:text-9xl leading-none drop-shadow-[0_4px_24px_rgba(0,0,0,0.8)]">
           7FC
         </h1>
         <p className="font-display tracking-[0.5em] text-gold-2 text-sm md:text-xl mt-3 uppercase">
           Seven FC
         </p>
-        <h2 className="font-display text-xl md:text-4xl text-white mt-7 tracking-wide">
+        <h2 className="font-display text-xl md:text-4xl text-white mt-7 tracking-wide drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]">
           The CR7 Legacy. Forever 7.
         </h2>
         <p className="mt-5 max-w-2xl text-sm md:text-lg text-gray-300">
           A global fan tribute to discipline, longevity, records, pressure,
           reinvention, and the standard of the number 7.
         </p>
-        <PlaceholderImg
-          src="/images/7fc-hero-player.webp"
-          alt="Back view of a generic number 7 football player under stadium lights"
-          className="mt-10 w-44 md:w-64 rounded-lg opacity-90"
-          label="Hero player placeholder"
-        />
-        <PlaceholderImg
-          src="/images/7fc-signature-mark.webp"
-          alt="Abstract gold signature-style decorative mark"
-          className="mt-4 w-32 md:w-52 opacity-80"
-          label="Signature mark placeholder"
-        />
-        <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10">
           <a
             href="#wall"
             className="cta-glow bg-crimson text-white font-bold tracking-widest uppercase text-sm md:text-base px-9 py-3.5 rounded"
@@ -121,6 +116,18 @@ export function Hero() {
           >
             See the Global 7 Wall
           </Link>
+        </div>
+        <div className="relative mt-8 md:mt-6 w-full flex justify-center">
+          <div
+            className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[80%] h-16 md:h-24 rounded-full bg-gold/10 blur-3xl"
+            aria-hidden
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/7fc-hero-player.webp"
+            alt="Back view of a generic number 7 football player under stadium lights"
+            className="relative w-52 sm:w-64 md:w-80 lg:w-[22rem] max-h-[52vh] md:max-h-[60vh] object-contain object-bottom drop-shadow-[0_20px_40px_rgba(0,0,0,0.6)]"
+          />
         </div>
       </div>
     </section>
