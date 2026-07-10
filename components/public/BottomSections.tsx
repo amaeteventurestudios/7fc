@@ -1,6 +1,9 @@
 "use client";
 
-import { Reveal, SectionTitle, PlaceholderImg, CONTAINER } from "./ui";
+import Link from "next/link";
+import { Reveal, SectionTitle, CONTAINER } from "./ui";
+import { HOME_KIT_LIMIT, productImage, productSlug } from "@/lib/kit";
+import { KitImage } from "./KitProductPage";
 import type { AffiliateProduct, LegalDisclaimers } from "@/lib/types";
 
 export function KitSection({
@@ -10,15 +13,6 @@ export function KitSection({
   products: AffiliateProduct[];
   disclosure: string;
 }) {
-  function trackClick(id: string) {
-    // fire-and-forget click counter
-    fetch("/api/kit/click", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ product_id: id }),
-      keepalive: true,
-    }).catch(() => {});
-  }
   return (
     <section id="kit" className="py-16 md:py-28 border-t border-gold/15">
       <div className={CONTAINER}>
@@ -29,15 +23,16 @@ export function KitSection({
         </p>
         <p className="text-center text-[11px] md:text-xs text-gray-500 mt-3">{disclosure}</p>
         <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-5">
-          {products.map((p, i) => (
+          {products.slice(0, HOME_KIT_LIMIT).map((p, i) => (
             <Reveal key={p.id} delay={i * 60}>
               <div className="glass-card h-full overflow-hidden text-center flex flex-col hover:border-gold/50 transition-colors">
-                <PlaceholderImg
-                  src={p.image_path}
-                  alt={`${p.title} — product category placeholder`}
-                  className="w-full aspect-[3/2] object-cover"
-                  label={p.title}
-                />
+                <Link href={`/kit/${productSlug(p)}`} aria-label={p.title}>
+                  <KitImage
+                    src={productImage(p)}
+                    alt={p.title}
+                    className="w-full aspect-[3/2] object-cover"
+                  />
+                </Link>
                 <div className="p-5 flex flex-col flex-1">
                   <p className="text-[10px] tracking-[0.25em] uppercase text-electric">
                     {p.category}
@@ -46,15 +41,12 @@ export function KitSection({
                     {p.title}
                   </h3>
                   <p className="text-xs text-gray-400 mt-2 flex-1">{p.description}</p>
-                  <a
-                    href={p.affiliate_url}
-                    target="_blank"
-                    rel="nofollow sponsored noopener"
-                    onClick={() => trackClick(p.id)}
+                  <Link
+                    href={`/kit/${productSlug(p)}`}
                     className="cta-gold-glow mt-4 inline-block border border-gold/60 text-gold-2 text-xs font-bold tracking-widest uppercase px-6 py-2.5 rounded mx-auto"
                   >
-                    {p.button_text}
-                  </a>
+                    View Pick
+                  </Link>
                 </div>
               </div>
             </Reveal>

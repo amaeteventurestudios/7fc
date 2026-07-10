@@ -127,6 +127,13 @@ export class JsonStore implements Store {
     );
   }
 
+  async listActiveProducts(): Promise<AffiliateProduct[]> {
+    const db = await readDb();
+    return db.affiliate_products
+      .filter((p) => p.active)
+      .sort((a, b) => a.sort_order - b.sort_order);
+  }
+
   async createProduct(fields: ProductFields, active: boolean) {
     return mutate((db) => {
       const p: AffiliateProduct = {
@@ -172,6 +179,13 @@ export class JsonStore implements Store {
         if (fields.description) product.description = fields.description;
         if (fields.affiliate_url) product.affiliate_url = fields.affiliate_url;
         if (fields.button_text) product.button_text = fields.button_text;
+        if (fields.slug !== undefined) product.slug = fields.slug;
+        if (fields.tags !== undefined) product.tags = fields.tags;
+        if (fields.gallery_images !== undefined)
+          product.gallery_images = fields.gallery_images;
+        if (fields.seo_title !== undefined) product.seo_title = fields.seo_title;
+        if (fields.seo_description !== undefined)
+          product.seo_description = fields.seo_description;
         if (typeof fields.active === "boolean") product.active = fields.active;
       }
       return true;

@@ -20,6 +20,7 @@ import type {
 import { ADMIN_TEMP_EMAIL, ADMIN_TEMP_PASSWORD } from "./data";
 import { DEFAULT_SETTINGS, DEFAULT_LEGAL } from "./store";
 import { NUMERIC_SETTINGS } from "./types";
+import { parseGallery } from "./kit";
 import { hashPassword } from "./auth";
 import type {
   Supporter,
@@ -46,7 +47,10 @@ export interface D1Database {
 type SupporterRow = Omit<Supporter, "show_full_name"> & {
   show_full_name: number;
 };
-type ProductRow = Omit<AffiliateProduct, "active"> & { active: number };
+type ProductRow = Omit<AffiliateProduct, "active" | "gallery_images"> & {
+  active: number;
+  gallery_images: string;
+};
 type AdminRow = Omit<AdminUser, "is_temporary"> & { is_temporary: number };
 
 const STATUS_FOR_ACTION: Record<SupporterAction, SupporterStatus> = {
@@ -59,7 +63,15 @@ function toSupporter(r: SupporterRow): Supporter {
   return { ...r, show_full_name: !!r.show_full_name };
 }
 function toProduct(r: ProductRow): AffiliateProduct {
-  return { ...r, active: !!r.active };
+  return {
+    ...r,
+    active: !!r.active,
+    slug: r.slug ?? "",
+    tags: r.tags ?? "",
+    seo_title: r.seo_title ?? "",
+    seo_description: r.seo_description ?? "",
+    gallery_images: parseGallery(r.gallery_images),
+  };
 }
 function toAdmin(r: AdminRow): AdminUser {
   return { ...r, is_temporary: !!r.is_temporary };
@@ -262,14 +274,24 @@ export class D1Store implements Store {
     return results.map(toProduct);
   }
 
+  async listActiveProducts(): Promise<AffiliateProduct[]> {
+    const { results } = await this.db
+      .prepare(
+        "SELECT * FROM affiliate_products WHERE active = 1 ORDER BY sort_order ASC"
+      )
+      .all<ProductRow>();
+    return results.map(toProduct);
+  }
+
   async createProduct(fields: ProductFields, active: boolean) {
     const id = crypto.randomUUID();
     await this.db
       .prepare(
         `INSERT INTO affiliate_products
            (id, title, category, image_path, description, affiliate_url,
-            button_text, active, sort_order, click_count)
-         SELECT ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(MAX(sort_order), -1) + 1, 0
+            button_text, slug, tags, gallery_images, seo_title, seo_description,
+            active, sort_order, click_count)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(MAX(sort_order), -1) + 1, 0
          FROM affiliate_products`
       )
       .bind(
@@ -280,6 +302,11 @@ export class D1Store implements Store {
         fields.description,
         fields.affiliate_url,
         fields.button_text,
+        fields.slug,
+        fields.tags,
+        JSON.stringify(fields.gallery_images ?? []),
+        fields.seo_title,
+        fields.seo_description,
         active ? 1 : 0
       )
       .run();
@@ -328,13 +355,27 @@ export class D1Store implements Store {
         description: fields.description || product.description,
         affiliate_url: fields.affiliate_url || product.affiliate_url,
         button_text: fields.button_text || product.button_text,
+        slug: fields.slug !== undefined ? fields.slug : product.slug,
+        tags: fields.tags !== undefined ? fields.tags : product.tags,
+        gallery_images:
+          fields.gallery_images !== undefined
+            ? fields.gallery_images
+            : product.gallery_images,
+        seo_title:
+          fields.seo_title !== undefined ? fields.seo_title : product.seo_title,
+        seo_description:
+          fields.seo_description !== undefined
+            ? fields.seo_description
+            : product.seo_description,
         active:
           typeof fields.active === "boolean" ? fields.active : product.active,
       };
       await this.db
         .prepare(
           `UPDATE affiliate_products SET title = ?, category = ?, image_path = ?,
-             description = ?, affiliate_url = ?, button_text = ?, active = ?
+             description = ?, affiliate_url = ?, button_text = ?, slug = ?,
+             tags = ?, gallery_images = ?, seo_title = ?, seo_description = ?,
+             active = ?
            WHERE id = ?`
         )
         .bind(
@@ -344,6 +385,11 @@ export class D1Store implements Store {
           next.description,
           next.affiliate_url,
           next.button_text,
+          next.slug,
+          next.tags,
+          JSON.stringify(next.gallery_images),
+          next.seo_title,
+          next.seo_description,
           next.active ? 1 : 0,
           id
         )

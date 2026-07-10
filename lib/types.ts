@@ -52,10 +52,19 @@ export interface AffiliateProduct {
   id: string;
   title: string;
   category: string;
+  /** Main product image. The only required image for a product page. */
   image_path: string;
   description: string;
   affiliate_url: string;
   button_text: string;
+  /** URL slug for /kit/[slug]. Falls back to slugified title when empty. */
+  slug: string;
+  /** Comma-separated tags used for related-product matching. */
+  tags: string;
+  /** Optional extra gallery images. Empty array hides the thumbnail gallery. */
+  gallery_images: string[];
+  seo_title: string;
+  seo_description: string;
   active: boolean;
   sort_order: number;
   click_count: number;

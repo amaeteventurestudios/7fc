@@ -98,6 +98,11 @@ function seedDb(): Database {
     ...p,
     affiliate_url: "https://www.amazon.com/?tag=YOUR_AFFILIATE_TAG",
     button_text: "View on Amazon",
+    slug: "",
+    tags: p.category.toLowerCase(),
+    gallery_images: [],
+    seo_title: "",
+    seo_description: "",
     active: true,
     sort_order: i,
     click_count: 0,
@@ -143,7 +148,17 @@ let writeQueue: Promise<void> = Promise.resolve();
 export async function readDb(): Promise<Database> {
   try {
     const raw = await fs.readFile(DB_PATH, "utf8");
-    return JSON.parse(raw) as Database;
+    const db = JSON.parse(raw) as Database;
+    // Normalize product rows written before the kit-page fields existed.
+    db.affiliate_products = db.affiliate_products.map((p) => ({
+      ...p,
+      slug: p.slug ?? "",
+      tags: p.tags ?? "",
+      gallery_images: p.gallery_images ?? [],
+      seo_title: p.seo_title ?? "",
+      seo_description: p.seo_description ?? "",
+    }));
+    return db;
   } catch {
     const db = seedDb();
     await writeDb(db);

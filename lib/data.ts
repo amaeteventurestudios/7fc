@@ -45,6 +45,11 @@ export interface ProductFields {
   description: string;
   affiliate_url: string;
   button_text: string;
+  slug: string;
+  tags: string;
+  gallery_images: string[];
+  seo_title: string;
+  seo_description: string;
 }
 
 export interface DashboardStats {
@@ -79,6 +84,8 @@ export interface Store {
     patch: Partial<GlobalWallSettings>
   ): Promise<GlobalWallSettings>;
   listProducts(): Promise<AffiliateProduct[]>;
+  /** Active products sorted by display order (public Kit pages). */
+  listActiveProducts(): Promise<AffiliateProduct[]>;
   createProduct(
     fields: ProductFields,
     active: boolean

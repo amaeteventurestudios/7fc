@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStore, type ProductAction } from "@/lib/data";
 import { requireAdmin } from "@/lib/request";
+import { slugify, parseGallery } from "@/lib/kit";
 
 export async function GET() {
   const auth = await requireAdmin();
@@ -10,13 +11,19 @@ export async function GET() {
 }
 
 function sanitize(body: Record<string, unknown>) {
+  const title = String(body.title ?? "").trim().slice(0, 120);
   return {
-    title: String(body.title ?? "").trim().slice(0, 120),
+    title,
     category: String(body.category ?? "").trim().slice(0, 60),
     image_path: String(body.image_path ?? "").trim().slice(0, 200),
-    description: String(body.description ?? "").trim().slice(0, 400),
+    description: String(body.description ?? "").trim().slice(0, 2000),
     affiliate_url: String(body.affiliate_url ?? "").trim().slice(0, 500),
     button_text: String(body.button_text ?? "View on Amazon").trim().slice(0, 60),
+    slug: slugify(String(body.slug ?? "").trim() || title),
+    tags: String(body.tags ?? "").trim().slice(0, 300),
+    gallery_images: parseGallery(body.gallery_images).slice(0, 8),
+    seo_title: String(body.seo_title ?? "").trim().slice(0, 160),
+    seo_description: String(body.seo_description ?? "").trim().slice(0, 300),
   };
 }
 

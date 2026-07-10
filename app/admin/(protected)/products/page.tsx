@@ -13,10 +13,16 @@ import type { AffiliateProduct } from "@/lib/types";
 const EMPTY = {
   title: "",
   category: "",
-  image_path: "/images/",
+  image_path: "",
   description: "",
   affiliate_url: "",
   button_text: "View on Amazon",
+  slug: "",
+  tags: "",
+  gallery_images: "",
+  seo_title: "",
+  seo_description: "",
+  active: true,
 };
 
 export default function ProductsPage() {
@@ -94,24 +100,41 @@ export default function ProductsPage() {
           <div className="grid md:grid-cols-2 gap-3">
             {(
               [
-                ["title", "Title"],
-                ["category", "Category"],
-                ["image_path", "Image path"],
-                ["affiliate_url", "Affiliate URL"],
-                ["button_text", "Button text"],
+                ["title", "Title", ""],
+                ["slug", "Slug (URL: /kit/…, blank = from title)", "auto-generated from title"],
+                ["category", "Category", "e.g. Training"],
+                ["tags", "Tags (comma-separated, for related picks)", "training, agility"],
+                ["image_path", "Main image path", "/images/…"],
+                ["affiliate_url", "Amazon affiliate URL", "https://www.amazon.com/…"],
+                ["button_text", "Button text", ""],
+                ["seo_title", "SEO title", ""],
               ] as const
-            ).map(([key, label]) => (
+            ).map(([key, label, placeholder]) => (
               <div key={key}>
                 <label className="block text-[11px] uppercase tracking-wider text-gray-500 mb-1">
                   {label}
                 </label>
                 <input
                   value={form[key]}
+                  placeholder={placeholder}
                   onChange={(e) => setForm({ ...form, [key]: e.target.value })}
                   className={adminInput}
                 />
               </div>
             ))}
+            <div className="md:col-span-2">
+              <label className="block text-[11px] uppercase tracking-wider text-gray-500 mb-1">
+                SEO description
+              </label>
+              <textarea
+                value={form.seo_description}
+                onChange={(e) =>
+                  setForm({ ...form, seo_description: e.target.value })
+                }
+                rows={2}
+                className={adminInput}
+              />
+            </div>
             <div className="md:col-span-2">
               <label className="block text-[11px] uppercase tracking-wider text-gray-500 mb-1">
                 Description
@@ -123,6 +146,28 @@ export default function ProductsPage() {
                 className={adminInput}
               />
             </div>
+            <div className="md:col-span-2">
+              <label className="block text-[11px] uppercase tracking-wider text-gray-500 mb-1">
+                Gallery images (optional, one path per line)
+              </label>
+              <textarea
+                value={form.gallery_images}
+                onChange={(e) =>
+                  setForm({ ...form, gallery_images: e.target.value })
+                }
+                rows={2}
+                placeholder={"/images/…\n/images/…"}
+                className={adminInput}
+              />
+            </div>
+            <label className="flex items-center gap-2 text-xs text-gray-300 md:col-span-2">
+              <input
+                type="checkbox"
+                checked={form.active}
+                onChange={(e) => setForm({ ...form, active: e.target.checked })}
+              />
+              Active (visible on the site)
+            </label>
           </div>
           <div className="flex gap-2 mt-4">
             <button className={adminBtn} onClick={save}>
@@ -183,6 +228,12 @@ export default function ProductsPage() {
                             description: p.description,
                             affiliate_url: p.affiliate_url,
                             button_text: p.button_text,
+                            slug: p.slug,
+                            tags: p.tags,
+                            gallery_images: (p.gallery_images ?? []).join("\n"),
+                            seo_title: p.seo_title,
+                            seo_description: p.seo_description,
+                            active: p.active,
                           });
                         }}
                       >
