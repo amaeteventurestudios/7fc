@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Reveal, SectionTitle, CountUp, Particles, PlaceholderImg, CONTAINER } from "./ui";
 import MobileMenu from "./MobileMenu";
+import { PRIMARY_NAV } from "@/lib/site";
 
 export function DisclaimerBar({ text }: { text: string }) {
   return (
@@ -13,32 +14,22 @@ export function DisclaimerBar({ text }: { text: string }) {
   );
 }
 
-const NAV_LINKS = [
-  ["Home", "/#top"],
-  ["The Code", "/#the-code"],
-  ["Journey", "/#journey"],
-  ["Eras", "/#eras"],
-  ["Moments", "/#moments"],
-  ["Wall", "/wall"],
-  ["Kit", "/#kit"],
-  ["About", "/#about"],
-] as const;
-
 export function Nav() {
   const pathname = usePathname();
   return (
     <>
     <header className="sticky top-0 z-50 bg-night/85 backdrop-blur border-b border-gold/15">
       <div className={`${CONTAINER} flex items-center justify-between py-3`}>
-        <Link href="/#top" className="flex items-baseline gap-2">
+        <Link href="/" className="flex items-baseline gap-2" aria-label="7FC home">
           <span className="font-display text-xl md:text-2xl font-black gold-text">7FC</span>
           <span className="hidden sm:inline text-[10px] tracking-[0.35em] text-gold/70 uppercase">
             Seven FC
           </span>
         </Link>
-        <nav className="hidden md:flex gap-5 lg:gap-7 text-xs tracking-[0.2em] uppercase text-gray-300">
-          {NAV_LINKS.map(([label, href]) => {
-            const active = href === "/wall" && pathname === "/wall";
+        <nav className="hidden md:flex gap-4 lg:gap-6 text-xs tracking-[0.2em] uppercase text-gray-300">
+          {PRIMARY_NAV.map(([label, href]) => {
+            const active =
+              href === "/" ? pathname === "/" : pathname?.startsWith(href);
             return (
               <Link
                 key={href}

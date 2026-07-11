@@ -4,16 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
-const LINKS = [
-  ["Home", "/#top"],
-  ["The Code", "/#the-code"],
-  ["Journey", "/#journey"],
-  ["Eras", "/#eras"],
-  ["Moments", "/#moments"],
-  ["Wall", "/wall"],
-  ["Kit", "/#kit"],
-  ["About", "/#about"],
-] as const;
+import { PRIMARY_NAV as LINKS } from "@/lib/site";
 
 /**
  * Floating mobile navigation: a fixed bottom-center glass pill that opens a

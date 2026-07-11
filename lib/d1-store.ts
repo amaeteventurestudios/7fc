@@ -20,7 +20,12 @@ import type {
 import { ADMIN_TEMP_EMAIL, ADMIN_TEMP_PASSWORD } from "./data";
 import { DEFAULT_SETTINGS, DEFAULT_LEGAL } from "./store";
 import { NUMERIC_SETTINGS } from "./types";
-import { parseGallery } from "./kit";
+import {
+  parseGallery,
+  parseContent,
+  parseFaqs,
+  PRODUCT_FIELD_DEFAULTS,
+} from "./kit";
 import { hashPassword } from "./auth";
 import type {
   Supporter,
@@ -47,9 +52,16 @@ export interface D1Database {
 type SupporterRow = Omit<Supporter, "show_full_name"> & {
   show_full_name: number;
 };
-type ProductRow = Omit<AffiliateProduct, "active" | "gallery_images"> & {
+type ProductRow = Omit<
+  AffiliateProduct,
+  "active" | "featured" | "indexable" | "gallery_images" | "content" | "faqs"
+> & {
   active: number;
+  featured: number;
+  indexable: number;
   gallery_images: string;
+  content_json: string;
+  faqs_json: string;
 };
 type AdminRow = Omit<AdminUser, "is_temporary"> & { is_temporary: number };
 
@@ -63,15 +75,25 @@ function toSupporter(r: SupporterRow): Supporter {
   return { ...r, show_full_name: !!r.show_full_name };
 }
 function toProduct(r: ProductRow): AffiliateProduct {
+  const { content_json, faqs_json, ...rest } = r;
+  const stringDefaults = Object.fromEntries(
+    Object.entries(PRODUCT_FIELD_DEFAULTS).map(([k, v]) => [
+      k,
+      typeof v === "string" ? v : undefined,
+    ])
+  );
   return {
-    ...r,
+    ...(stringDefaults as Partial<AffiliateProduct>),
+    ...Object.fromEntries(
+      Object.entries(rest).filter(([, v]) => v !== null && v !== undefined)
+    ),
     active: !!r.active,
-    slug: r.slug ?? "",
-    tags: r.tags ?? "",
-    seo_title: r.seo_title ?? "",
-    seo_description: r.seo_description ?? "",
+    featured: !!r.featured,
+    indexable: r.indexable === undefined || r.indexable === null || !!r.indexable,
     gallery_images: parseGallery(r.gallery_images),
-  };
+    content: parseContent(content_json),
+    faqs: parseFaqs(faqs_json),
+  } as AffiliateProduct;
 }
 function toAdmin(r: AdminRow): AdminUser {
   return { ...r, is_temporary: !!r.is_temporary };
@@ -283,31 +305,90 @@ export class D1Store implements Store {
     return results.map(toProduct);
   }
 
+  /** Editable columns in bind order (see fieldBindValues). */
+  private static FIELD_COLUMNS = [
+    "title",
+    "short_title",
+    "brand",
+    "category",
+    "image_path",
+    "image_alt",
+    "description",
+    "affiliate_url",
+    "button_text",
+    "slug",
+    "tags",
+    "gallery_images",
+    "seo_title",
+    "seo_description",
+    "og_title",
+    "og_description",
+    "og_image",
+    "primary_keyword",
+    "secondary_keywords",
+    "search_intent",
+    "h1",
+    "eyebrow",
+    "image_disclaimer",
+    "affiliate_disclosure",
+    "legal_disclaimer",
+    "content_json",
+    "faqs_json",
+    "related_fallback_slugs",
+    "featured",
+    "indexable",
+  ] as const;
+
+  private static fieldBindValues(f: ProductFields): unknown[] {
+    return [
+      f.title,
+      f.short_title,
+      f.brand,
+      f.category,
+      f.image_path,
+      f.image_alt,
+      f.description,
+      f.affiliate_url,
+      f.button_text,
+      f.slug,
+      f.tags,
+      JSON.stringify(f.gallery_images ?? []),
+      f.seo_title,
+      f.seo_description,
+      f.og_title,
+      f.og_description,
+      f.og_image,
+      f.primary_keyword,
+      f.secondary_keywords,
+      f.search_intent,
+      f.h1,
+      f.eyebrow,
+      f.image_disclaimer,
+      f.affiliate_disclosure,
+      f.legal_disclaimer,
+      JSON.stringify(f.content ?? {}),
+      JSON.stringify(f.faqs ?? []),
+      f.related_fallback_slugs,
+      f.featured ? 1 : 0,
+      f.indexable ? 1 : 0,
+    ];
+  }
+
   async createProduct(fields: ProductFields, active: boolean) {
     const id = crypto.randomUUID();
+    const cols = D1Store.FIELD_COLUMNS;
     await this.db
       .prepare(
         `INSERT INTO affiliate_products
-           (id, title, category, image_path, description, affiliate_url,
-            button_text, slug, tags, gallery_images, seo_title, seo_description,
-            active, sort_order, click_count)
-         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(MAX(sort_order), -1) + 1, 0
+           (id, ${cols.join(", ")}, active, updated_at, sort_order, click_count)
+         SELECT ?, ${cols.map(() => "?").join(", ")}, ?, ?, COALESCE(MAX(sort_order), -1) + 1, 0
          FROM affiliate_products`
       )
       .bind(
         id,
-        fields.title,
-        fields.category,
-        fields.image_path,
-        fields.description,
-        fields.affiliate_url,
-        fields.button_text,
-        fields.slug,
-        fields.tags,
-        JSON.stringify(fields.gallery_images ?? []),
-        fields.seo_title,
-        fields.seo_description,
-        active ? 1 : 0
+        ...D1Store.fieldBindValues(fields),
+        active ? 1 : 0,
+        new Date().toISOString()
       )
       .run();
     const row = await this.db
@@ -348,49 +429,22 @@ export class D1Store implements Store {
         .bind(product.active ? 0 : 1, id)
         .run();
     } else if (action === "update" && fields) {
-      const next = {
-        title: fields.title || product.title,
-        category: fields.category || product.category,
-        image_path: fields.image_path || product.image_path,
-        description: fields.description || product.description,
-        affiliate_url: fields.affiliate_url || product.affiliate_url,
-        button_text: fields.button_text || product.button_text,
-        slug: fields.slug !== undefined ? fields.slug : product.slug,
-        tags: fields.tags !== undefined ? fields.tags : product.tags,
-        gallery_images:
-          fields.gallery_images !== undefined
-            ? fields.gallery_images
-            : product.gallery_images,
-        seo_title:
-          fields.seo_title !== undefined ? fields.seo_title : product.seo_title,
-        seo_description:
-          fields.seo_description !== undefined
-            ? fields.seo_description
-            : product.seo_description,
-        active:
-          typeof fields.active === "boolean" ? fields.active : product.active,
-      };
+      const merged: AffiliateProduct = { ...product };
+      for (const [key, value] of Object.entries(fields)) {
+        if (value === undefined) continue;
+        (merged as unknown as Record<string, unknown>)[key] = value;
+      }
+      const cols = D1Store.FIELD_COLUMNS;
       await this.db
         .prepare(
-          `UPDATE affiliate_products SET title = ?, category = ?, image_path = ?,
-             description = ?, affiliate_url = ?, button_text = ?, slug = ?,
-             tags = ?, gallery_images = ?, seo_title = ?, seo_description = ?,
-             active = ?
+          `UPDATE affiliate_products
+             SET ${cols.map((c) => `${c} = ?`).join(", ")}, active = ?, updated_at = ?
            WHERE id = ?`
         )
         .bind(
-          next.title,
-          next.category,
-          next.image_path,
-          next.description,
-          next.affiliate_url,
-          next.button_text,
-          next.slug,
-          next.tags,
-          JSON.stringify(next.gallery_images),
-          next.seo_title,
-          next.seo_description,
-          next.active ? 1 : 0,
+          ...D1Store.fieldBindValues(merged),
+          merged.active ? 1 : 0,
+          new Date().toISOString(),
           id
         )
         .run();

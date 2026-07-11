@@ -20,6 +20,7 @@ import type {
   AdminUser,
 } from "./types";
 import { hashPassword } from "./auth";
+import { PRODUCT_FIELD_DEFAULTS } from "./kit";
 
 const DATA_DIR = path.join(process.cwd(), ".data");
 const DB_PATH = path.join(DATA_DIR, "db.json");
@@ -95,14 +96,11 @@ function seedDb(): Database {
   };
   const products: AffiliateProduct[] = KIT_PRODUCTS.map((p, i) => ({
     id: crypto.randomUUID(),
+    ...PRODUCT_FIELD_DEFAULTS,
     ...p,
     affiliate_url: "https://www.amazon.com/?tag=YOUR_AFFILIATE_TAG",
     button_text: "View on Amazon",
-    slug: "",
     tags: p.category.toLowerCase(),
-    gallery_images: [],
-    seo_title: "",
-    seo_description: "",
     active: true,
     sort_order: i,
     click_count: 0,
@@ -151,12 +149,8 @@ export async function readDb(): Promise<Database> {
     const db = JSON.parse(raw) as Database;
     // Normalize product rows written before the kit-page fields existed.
     db.affiliate_products = db.affiliate_products.map((p) => ({
+      ...PRODUCT_FIELD_DEFAULTS,
       ...p,
-      slug: p.slug ?? "",
-      tags: p.tags ?? "",
-      gallery_images: p.gallery_images ?? [],
-      seo_title: p.seo_title ?? "",
-      seo_description: p.seo_description ?? "",
     }));
     return db;
   } catch {

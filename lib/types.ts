@@ -48,26 +48,67 @@ export const NUMERIC_SETTINGS = [
   "wall_page_size",
 ] as const satisfies ReadonlyArray<keyof GlobalWallSettings>;
 
+/** Editorial page-content sections for a Kit product page. */
+export interface ProductContent {
+  why_7fc?: string;
+  overview?: string;
+  interesting?: string;
+  best_for?: string;
+  how_to_use?: string;
+  gift_occasions?: string;
+  what_to_check?: string;
+  verdict?: string;
+  verified_facts?: string[];
+  unverified_fields?: string[];
+}
+
+export interface ProductFaq {
+  question: string;
+  answer: string;
+}
+
 export interface AffiliateProduct {
   id: string;
   title: string;
+  short_title: string;
+  brand: string;
   category: string;
   /** Main product image. The only required image for a product page. */
   image_path: string;
+  image_alt: string;
   description: string;
   affiliate_url: string;
   button_text: string;
   /** URL slug for /kit/[slug]. Falls back to slugified title when empty. */
   slug: string;
-  /** Comma-separated tags used for related-product matching. */
+  /** Pipe- or comma-separated tags used for related-product matching. */
   tags: string;
   /** Optional extra gallery images. Empty array hides the thumbnail gallery. */
   gallery_images: string[];
   seo_title: string;
   seo_description: string;
+  og_title: string;
+  og_description: string;
+  og_image: string;
+  primary_keyword: string;
+  secondary_keywords: string;
+  search_intent: string;
+  /** Product-page H1 override; falls back to title. */
+  h1: string;
+  eyebrow: string;
+  image_disclaimer: string;
+  affiliate_disclosure: string;
+  legal_disclaimer: string;
+  content: ProductContent;
+  faqs: ProductFaq[];
+  /** Pipe-separated fallback slugs for the related-picks section. */
+  related_fallback_slugs: string;
+  featured: boolean;
+  indexable: boolean;
   active: boolean;
   sort_order: number;
   click_count: number;
+  updated_at: string;
 }
 
 export interface LegalDisclaimers {

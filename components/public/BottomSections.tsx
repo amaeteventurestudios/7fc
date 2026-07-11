@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { Reveal, SectionTitle, CONTAINER } from "./ui";
-import { HOME_KIT_LIMIT, productImage, productSlug } from "@/lib/kit";
+import { productImage, productSlug } from "@/lib/kit";
+import { PRIMARY_NAV } from "@/lib/site";
 import { KitImage } from "./KitProductPage";
 import type { AffiliateProduct, LegalDisclaimers } from "@/lib/types";
 
@@ -13,17 +14,19 @@ export function KitSection({
   products: AffiliateProduct[];
   disclosure: string;
 }) {
+  const featured = products.filter((p) => p.featured);
+  const shown = (featured.length ? featured : products).slice(0, 6);
   return (
     <section id="kit" className="py-16 md:py-28 border-t border-gold/15">
       <div className={CONTAINER}>
         <SectionTitle>The 7FC Kit</SectionTitle>
         <p className="text-center text-sm md:text-lg text-gray-300 max-w-2xl mx-auto">
-          Books, training tools, recovery gear, and football essentials for
-          fans of greatness.
+          Collectibles, fragrance, fan display pieces, training gear, and
+          football essentials for fans of greatness.
         </p>
         <p className="text-center text-[11px] md:text-xs text-gray-500 mt-3">{disclosure}</p>
-        <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-5">
-          {products.slice(0, HOME_KIT_LIMIT).map((p, i) => (
+        <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+          {shown.map((p, i) => (
             <Reveal key={p.id} delay={i * 60}>
               <div className="glass-card h-full overflow-hidden text-center flex flex-col hover:border-gold/50 transition-colors">
                 <Link href={`/kit/${productSlug(p)}`} aria-label={p.title}>
@@ -51,6 +54,14 @@ export function KitSection({
               </div>
             </Reveal>
           ))}
+        </div>
+        <div className="text-center mt-10">
+          <Link
+            href="/kit"
+            className="cta-gold-glow inline-block border border-gold/60 text-gold-2 text-sm font-bold tracking-widest uppercase px-8 py-3.5 rounded"
+          >
+            Explore the Full 7FC Kit
+          </Link>
         </div>
       </div>
     </section>
@@ -85,6 +96,16 @@ export function SiteFooter({ legal }: { legal: LegalDisclaimers }) {
       <p className="text-xs text-gray-400 mt-4">
         This is for the fans. This is for the legacy.
       </p>
+      <nav
+        aria-label="Footer"
+        className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-2 text-[11px] tracking-[0.2em] uppercase text-gray-400"
+      >
+        {PRIMARY_NAV.map(([label, href]) => (
+          <Link key={href} href={href} className="hover:text-gold-2 transition-colors">
+            {label}
+          </Link>
+        ))}
+      </nav>
       {/* Social: X only — no Instagram/Facebook/YouTube/TikTok.
           TODO: replace href="#" with the real 7FC X profile URL when available. */}
       <a

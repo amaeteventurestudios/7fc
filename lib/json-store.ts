@@ -140,8 +140,11 @@ export class JsonStore implements Store {
         id: crypto.randomUUID(),
         ...fields,
         active,
-        sort_order: db.affiliate_products.length,
+        sort_order:
+          db.affiliate_products.reduce((m, x) => Math.max(m, x.sort_order), -1) +
+          1,
         click_count: 0,
+        updated_at: new Date().toISOString(),
       };
       db.affiliate_products.push(p);
       return p;
@@ -173,20 +176,11 @@ export class JsonStore implements Store {
       } else if (action === "toggle_active") {
         product.active = !product.active;
       } else if (action === "update" && fields) {
-        if (fields.title) product.title = fields.title;
-        if (fields.category) product.category = fields.category;
-        if (fields.image_path) product.image_path = fields.image_path;
-        if (fields.description) product.description = fields.description;
-        if (fields.affiliate_url) product.affiliate_url = fields.affiliate_url;
-        if (fields.button_text) product.button_text = fields.button_text;
-        if (fields.slug !== undefined) product.slug = fields.slug;
-        if (fields.tags !== undefined) product.tags = fields.tags;
-        if (fields.gallery_images !== undefined)
-          product.gallery_images = fields.gallery_images;
-        if (fields.seo_title !== undefined) product.seo_title = fields.seo_title;
-        if (fields.seo_description !== undefined)
-          product.seo_description = fields.seo_description;
-        if (typeof fields.active === "boolean") product.active = fields.active;
+        for (const [key, value] of Object.entries(fields)) {
+          if (value === undefined) continue;
+          (product as unknown as Record<string, unknown>)[key] = value;
+        }
+        product.updated_at = new Date().toISOString();
       }
       return true;
     });

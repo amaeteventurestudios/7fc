@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { CONTAINER, Reveal } from "./ui";
-import { KIT_FALLBACK_IMAGE, productImage, productSlug } from "@/lib/kit";
+import { KIT_FALLBACK_IMAGE, productImage, productSlug, parseTags } from "@/lib/kit";
 import type { AffiliateProduct } from "@/lib/types";
 
 function trackClick(id: string) {
@@ -20,10 +20,12 @@ export function KitImage({
   src,
   alt,
   className = "",
+  eager = false,
 }: {
   src: string;
   alt: string;
   className?: string;
+  eager?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   return (
@@ -31,100 +33,98 @@ export function KitImage({
     <img
       src={failed ? KIT_FALLBACK_IMAGE : src}
       alt={alt}
-      loading="lazy"
+      loading={eager ? "eager" : "lazy"}
       className={className}
       onError={() => setFailed(true)}
     />
   );
 }
 
-function Check() {
-  return <span className="text-gold-2 mr-2 shrink-0">✓</span>;
-}
-
-const BENEFITS = [
-  { icon: "🎁", title: "Perfect Gift", text: "For football fans of all ages" },
-  { icon: "🏠", title: "Display Ready", text: "Looks great on shelves or desks" },
-  { icon: "📦", title: "Collectible", text: "A must-have for football lovers" },
-];
-
-const FAQ = [
-  {
-    q: "Is this an official football product?",
-    a: "No. This is an unofficial fan-favorite pick inspired by the legacy of No.7. It is not affiliated with any player, club, or official brand.",
-  },
-  {
-    q: "Where does this pick ship from?",
-    a: "This pick is fulfilled through Amazon. Shipping times and availability depend on the Amazon listing.",
-  },
-  {
-    q: "Why is it in the 7FC Kit?",
-    a: "Every pick in the 7FC Kit earns its place by supporting the standard: work, discipline, recovery, and the No.7 mindset.",
-  },
-  {
-    q: "How do I check the current price?",
-    a: "Prices change on Amazon. Tap the View on Amazon button to see the latest price, reviews, and availability.",
-  },
-];
-
-function RelatedCard({ p }: { p: AffiliateProduct }) {
+export function RelatedCard({ p }: { p: AffiliateProduct }) {
   return (
     <div className="glass-card overflow-hidden text-center flex flex-col hover:border-gold/50 transition-colors h-full">
-      <KitImage
-        src={productImage(p)}
-        alt={p.title}
-        className="w-full aspect-[3/2] object-cover"
-      />
+      <Link href={`/kit/${productSlug(p)}`} aria-label={p.short_title || p.title}>
+        <KitImage
+          src={productImage(p)}
+          alt={p.image_alt || p.title}
+          className="w-full aspect-[3/2] object-cover"
+        />
+      </Link>
       <div className="p-4 flex flex-col flex-1">
         <p className="text-[10px] tracking-[0.25em] uppercase text-electric">
           {p.category}
         </p>
         <h3 className="font-display text-sm font-bold text-gold-2 mt-1 flex-1">
-          {p.title}
+          {p.short_title || p.title}
         </h3>
         <Link
           href={`/kit/${productSlug(p)}`}
           className="mt-4 inline-block border border-gold/60 text-gold-2 text-[11px] font-bold tracking-widest uppercase px-5 py-2 rounded mx-auto hover:bg-gold/10 transition-colors"
         >
-          View Pick
+          View Product
         </Link>
       </div>
     </div>
   );
 }
 
+function EditorialSection({
+  title,
+  body,
+  delay = 0,
+}: {
+  title: string;
+  body?: string;
+  delay?: number;
+}) {
+  if (!body?.trim()) return null;
+  return (
+    <Reveal delay={delay}>
+      <div className="glass-card p-6 md:p-8 h-full">
+        <h2 className="font-display text-base md:text-lg font-bold text-gold-2 tracking-wide uppercase">
+          {title}
+        </h2>
+        <p className="text-sm text-gray-300 mt-3 leading-relaxed whitespace-pre-line">
+          {body}
+        </p>
+      </div>
+    </Reveal>
+  );
+}
+
 export default function KitProductPage({
   product,
   related,
-  disclosure,
 }: {
   product: AffiliateProduct;
   related: AffiliateProduct[];
-  disclosure: string;
 }) {
   const gallery = [productImage(product), ...product.gallery_images];
   const [activeImage, setActiveImage] = useState(0);
   const hasGallery = product.gallery_images.length > 0;
+  const c = product.content;
+  const tags = parseTags(product.tags).slice(0, 6);
 
   return (
     <div className={`${CONTAINER} py-8 md:py-14`}>
-      {/* Breadcrumb */}
+      {/* Breadcrumbs */}
       <nav className="text-xs text-gray-500 mb-8" aria-label="Breadcrumb">
         <Link href="/" className="hover:text-gold-2">Home</Link>
         <span className="mx-2">›</span>
-        <Link href="/#kit" className="hover:text-gold-2">7FC Kit</Link>
+        <Link href="/kit" className="hover:text-gold-2">7FC Kit</Link>
         <span className="mx-2">›</span>
-        <span className="text-gray-300">{product.title}</span>
+        <span className="text-gray-300">{product.short_title || product.title}</span>
       </nav>
 
-      {/* Top: image + summary */}
+      {/* Hero */}
       <div className="grid md:grid-cols-2 gap-10 lg:gap-16">
         <div>
           <div className="glass-card overflow-hidden">
             <KitImage
               src={gallery[activeImage] ?? productImage(product)}
-              alt={product.title}
-              className="w-full aspect-square object-cover"
+              alt={product.image_alt || product.title}
+              className="w-full aspect-[3/2] object-cover"
+              eager
             />
           </div>
           {hasGallery && (
@@ -143,131 +143,92 @@ export default function KitProductPage({
               ))}
             </div>
           )}
+          {product.image_disclaimer && (
+            <p className="text-[11px] text-gray-500 mt-3 leading-relaxed">
+              {product.image_disclaimer}
+            </p>
+          )}
         </div>
 
         <div>
-          <p className="text-xs tracking-[0.3em] uppercase text-electric">
-            {product.category}
-          </p>
-          <h1 className="font-display text-3xl md:text-4xl font-bold gold-text mt-3">
-            {product.title}
+          {product.eyebrow && (
+            <p className="text-xs tracking-[0.3em] uppercase text-electric">
+              {product.eyebrow}
+            </p>
+          )}
+          <h1 className="font-display text-2xl md:text-4xl font-bold gold-text mt-3 leading-tight">
+            {product.h1 || product.title}
           </h1>
           <p className="text-gray-300 mt-5 leading-relaxed">{product.description}</p>
 
-          <div className="grid grid-cols-3 gap-4 border-y border-gold/15 mt-8 py-6 text-center">
-            {BENEFITS.map((b) => (
-              <div key={b.title}>
-                <div className="text-2xl" aria-hidden>{b.icon}</div>
-                <p className="text-xs font-bold text-white mt-2">{b.title}</p>
-                <p className="text-[11px] text-gray-400 mt-1">{b.text}</p>
-              </div>
-            ))}
-          </div>
+          {tags.length > 0 && (
+            <ul className="flex flex-wrap gap-2 mt-5" aria-label="Product tags">
+              {tags.map((t) => (
+                <li
+                  key={t}
+                  className="text-[10px] tracking-[0.15em] uppercase text-gold-2/80 border border-gold/25 rounded-full px-3 py-1"
+                >
+                  {t}
+                </li>
+              ))}
+            </ul>
+          )}
 
           <a
             href={product.affiliate_url}
             target="_blank"
-            rel="nofollow sponsored noopener"
+            rel="sponsored nofollow noopener"
             onClick={() => trackClick(product.id)}
-            className="cta-gold-glow mt-8 block w-full text-center bg-gradient-to-b from-gold to-gold/70 text-navy font-bold tracking-[0.2em] uppercase text-sm px-8 py-4 rounded"
+            className="cta-gold-glow mt-8 block w-full text-center bg-gradient-to-b from-gold to-gold/70 text-navy font-bold tracking-[0.15em] uppercase text-sm px-6 py-4 rounded"
           >
-            {product.button_text || "View on Amazon"} ↗
+            {product.button_text || "Check Current Price on Amazon"} ↗
           </a>
-          <p className="text-center text-[11px] text-gray-500 mt-4">{disclosure}</p>
+          {product.affiliate_disclosure && (
+            <p className="text-center text-[11px] text-gray-500 mt-4">
+              {product.affiliate_disclosure}
+            </p>
+          )}
         </div>
       </div>
 
-      {/* Why it's in the 7FC Kit */}
-      <Reveal className="mt-14">
-        <div className="glass-card p-6 md:p-8">
-          <h2 className="font-display text-lg md:text-xl font-bold text-gold-2 tracking-wide uppercase">
-            Why it&apos;s in the 7FC Kit
-          </h2>
-          <p className="text-sm text-gray-300 mt-3 max-w-4xl leading-relaxed">
-            The number 7 represents more than goals. It&apos;s about responsibility,
-            pressure, leadership, and delivering when it matters most. This pick is in
-            the 7FC Kit because it supports the standard we all chase — on the pitch,
-            in training, and in the mindset.
-          </p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-8">
-            {[
-              {
-                h: "Who it's for",
-                items: [
-                  "Football fans and players",
-                  "Kids, teens, and adults",
-                  "Anyone chasing the standard",
-                  "Anyone who lives the No.7 mindset",
-                ],
-              },
-              {
-                h: "Why you'll love it",
-                items: [
-                  `A quality ${product.category.toLowerCase()} pick`,
-                  "Chosen for fans of greatness",
-                  "Supports the daily work",
-                  "Built for repeat use",
-                ],
-              },
-              {
-                h: "What to check",
-                items: [
-                  "Sizing and product options",
-                  "Latest reviews on Amazon",
-                  "Contents of the listing",
-                  "Unofficial fan-favorite pick",
-                ],
-              },
-              {
-                h: "7FC buying notes",
-                items: [
-                  "Ships from Amazon",
-                  "Easy returns where eligible",
-                  "Check latest price on Amazon",
-                  "Limited availability at times",
-                ],
-              },
-            ].map((col) => (
-              <div key={col.h} className="border border-gold/10 rounded p-4 bg-navy-2/40">
-                <h3 className="text-[11px] tracking-[0.25em] uppercase text-electric font-bold">
-                  {col.h}
-                </h3>
-                <ul className="mt-3 space-y-2 text-xs text-gray-300">
-                  {col.items.map((item) => (
-                    <li key={item} className="flex">
-                      <Check />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
+      {/* Editorial sections */}
+      <div className="mt-14 space-y-6">
+        <EditorialSection title="Why It Made the 7FC Kit" body={c.why_7fc} />
+        <EditorialSection title="Product Overview" body={c.overview} />
+        <EditorialSection title="What Makes It Interesting" body={c.interesting} />
+        <div className="grid md:grid-cols-2 gap-6">
+          <EditorialSection title="Best For" body={c.best_for} />
+          <EditorialSection title="How to Use or Display" body={c.how_to_use} delay={80} />
         </div>
-      </Reveal>
+        <EditorialSection title="Gift Occasions" body={c.gift_occasions} />
+        <EditorialSection title="What to Check Before Buying" body={c.what_to_check} />
+        <EditorialSection title="7FC Editorial Verdict" body={c.verdict} />
+      </div>
 
       {/* FAQ */}
-      <Reveal className="mt-10">
-        <div className="glass-card p-6 md:p-8">
-          <h2 className="font-display text-lg md:text-xl font-bold text-gold-2 tracking-wide uppercase">
-            FAQ
-          </h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
-            {FAQ.map((f) => (
-              <div key={f.q}>
-                <p className="text-xs font-bold text-white">{f.q}</p>
-                <p className="text-xs text-gray-400 mt-2 leading-relaxed">{f.a}</p>
-              </div>
-            ))}
+      {product.faqs.length > 0 && (
+        <Reveal className="mt-10">
+          <div className="glass-card p-6 md:p-8">
+            <h2 className="font-display text-base md:text-lg font-bold text-gold-2 tracking-wide uppercase">
+              FAQ
+            </h2>
+            <div className="grid sm:grid-cols-2 gap-6 mt-6">
+              {product.faqs.map((f) => (
+                <div key={f.question}>
+                  <h3 className="text-sm font-bold text-white">{f.question}</h3>
+                  <p className="text-xs text-gray-400 mt-2 leading-relaxed">{f.answer}</p>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </Reveal>
+        </Reveal>
+      )}
 
       {/* Related picks — hidden entirely when no other active products exist */}
       {related.length > 0 && (
         <Reveal className="mt-10">
           <div className="glass-card p-6 md:p-8">
-            <h2 className="font-display text-lg md:text-xl font-bold text-gold-2 tracking-wide uppercase">
+            <h2 className="font-display text-base md:text-lg font-bold text-gold-2 tracking-wide uppercase">
               Related 7FC Kit Picks
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mt-6">
@@ -275,8 +236,23 @@ export default function KitProductPage({
                 <RelatedCard key={p.id} p={p} />
               ))}
             </div>
+            <p className="text-center mt-8">
+              <Link
+                href="/kit"
+                className="text-xs tracking-[0.2em] uppercase text-gold-2 hover:text-gold underline underline-offset-4"
+              >
+                Explore the Full 7FC Kit
+              </Link>
+            </p>
           </div>
         </Reveal>
+      )}
+
+      {/* Legal disclaimer */}
+      {product.legal_disclaimer && (
+        <p className="text-[11px] text-gray-600 mt-10 max-w-4xl mx-auto text-center leading-relaxed">
+          {product.legal_disclaimer}
+        </p>
       )}
     </div>
   );

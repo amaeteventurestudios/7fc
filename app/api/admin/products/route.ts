@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getStore, type ProductAction } from "@/lib/data";
+import { getStore, type ProductAction, type ProductFields } from "@/lib/data";
 import { requireAdmin } from "@/lib/request";
-import { slugify, parseGallery } from "@/lib/kit";
+import {
+  slugify,
+  parseGallery,
+  parseFaqs,
+  EMPTY_PRODUCT_FIELDS,
+} from "@/lib/kit";
 
 export async function GET() {
   const auth = await requireAdmin();
@@ -10,21 +15,80 @@ export async function GET() {
   return NextResponse.json({ products: await store.listProducts() });
 }
 
-function sanitize(body: Record<string, unknown>) {
-  const title = String(body.title ?? "").trim().slice(0, 120);
-  return {
-    title,
-    category: String(body.category ?? "").trim().slice(0, 60),
-    image_path: String(body.image_path ?? "").trim().slice(0, 200),
-    description: String(body.description ?? "").trim().slice(0, 2000),
-    affiliate_url: String(body.affiliate_url ?? "").trim().slice(0, 500),
-    button_text: String(body.button_text ?? "View on Amazon").trim().slice(0, 60),
-    slug: slugify(String(body.slug ?? "").trim() || title),
-    tags: String(body.tags ?? "").trim().slice(0, 300),
-    gallery_images: parseGallery(body.gallery_images).slice(0, 8),
-    seo_title: String(body.seo_title ?? "").trim().slice(0, 160),
-    seo_description: String(body.seo_description ?? "").trim().slice(0, 300),
-  };
+/** [field, max length] for plain-string product fields. */
+const STRING_FIELDS: Array<[keyof ProductFields & string, number]> = [
+  ["title", 200],
+  ["short_title", 120],
+  ["brand", 80],
+  ["category", 60],
+  ["image_path", 300],
+  ["image_alt", 300],
+  ["description", 2000],
+  ["affiliate_url", 500],
+  ["button_text", 60],
+  ["tags", 400],
+  ["seo_title", 200],
+  ["seo_description", 400],
+  ["og_title", 200],
+  ["og_description", 400],
+  ["og_image", 300],
+  ["primary_keyword", 160],
+  ["secondary_keywords", 500],
+  ["search_intent", 160],
+  ["h1", 200],
+  ["eyebrow", 120],
+  ["image_disclaimer", 500],
+  ["affiliate_disclosure", 500],
+  ["legal_disclaimer", 1000],
+  ["related_fallback_slugs", 500],
+];
+
+const CONTENT_KEYS = [
+  "why_7fc",
+  "overview",
+  "interesting",
+  "best_for",
+  "how_to_use",
+  "gift_occasions",
+  "what_to_check",
+  "verdict",
+] as const;
+
+/**
+ * Builds a partial fields object from the request body. Only keys present in
+ * the body are included, so PATCH updates never wipe untouched fields.
+ */
+function sanitize(body: Record<string, unknown>): Partial<ProductFields> {
+  const out: Record<string, unknown> = {};
+  for (const [key, max] of STRING_FIELDS) {
+    if (key in body) out[key] = String(body[key] ?? "").trim().slice(0, max);
+  }
+  if ("slug" in body || "title" in body) {
+    const raw = String(body.slug ?? "").trim();
+    const title = String(body.title ?? "").trim();
+    if (raw || title) out.slug = slugify(raw || title);
+  }
+  if ("gallery_images" in body)
+    out.gallery_images = parseGallery(body.gallery_images).slice(0, 8);
+  if ("faqs" in body) out.faqs = parseFaqs(body.faqs).slice(0, 12);
+  if ("content" in body && body.content && typeof body.content === "object") {
+    const src = body.content as Record<string, unknown>;
+    const content: Record<string, unknown> = {};
+    for (const k of CONTENT_KEYS) {
+      if (k in src) content[k] = String(src[k] ?? "").trim().slice(0, 5000);
+    }
+    for (const k of ["verified_facts", "unverified_fields"] as const) {
+      if (Array.isArray(src[k]))
+        content[k] = (src[k] as unknown[])
+          .map((v) => String(v).trim().slice(0, 300))
+          .filter(Boolean)
+          .slice(0, 20);
+    }
+    out.content = content;
+  }
+  if ("featured" in body) out.featured = body.featured === true;
+  if ("indexable" in body) out.indexable = body.indexable !== false;
+  return out as Partial<ProductFields>;
 }
 
 export async function POST(req: NextRequest) {
@@ -36,7 +100,7 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
-  const fields = sanitize(body);
+  const fields: ProductFields = { ...EMPTY_PRODUCT_FIELDS, ...sanitize(body) };
   if (!fields.title || !fields.affiliate_url)
     return NextResponse.json(
       { error: "Title and affiliate URL are required." },

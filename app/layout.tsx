@@ -55,14 +55,25 @@ export const metadata: Metadata = {
   },
 };
 
-const structuredData = {
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  name: "7FC — Seven FC",
-  url: SITE_URL,
-  description:
-    "7FC is an independent, unofficial fan tribute and football culture site. Not affiliated with Cristiano Ronaldo, CR7, any club, federation, sponsor, or official brand.",
-};
+const structuredData = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "7FC — Seven FC",
+    url: SITE_URL,
+    description:
+      "7FC is an independent, unofficial fan tribute and football culture site. Not affiliated with Cristiano Ronaldo, CR7, any club, federation, sponsor, or official brand.",
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "7FC — Seven FC",
+    url: SITE_URL,
+    logo: `${SITE_URL}/images/7fc-logo-main.webp`,
+    description:
+      "An independent, unofficial fan tribute celebrating the discipline, records, and global fan energy of the number 7.",
+  },
+];
 
 export default function RootLayout({
   children,

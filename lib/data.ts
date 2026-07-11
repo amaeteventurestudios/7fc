@@ -38,19 +38,11 @@ export interface SupporterFilters {
   q?: string | null;
 }
 
-export interface ProductFields {
-  title: string;
-  category: string;
-  image_path: string;
-  description: string;
-  affiliate_url: string;
-  button_text: string;
-  slug: string;
-  tags: string;
-  gallery_images: string[];
-  seo_title: string;
-  seo_description: string;
-}
+/** All admin-editable product fields (everything except identity/analytics). */
+export type ProductFields = Omit<
+  AffiliateProduct,
+  "id" | "sort_order" | "click_count" | "active" | "updated_at"
+>;
 
 export interface DashboardStats {
   total_supporters: number;

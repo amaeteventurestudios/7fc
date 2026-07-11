@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://sevenfc.net";
 
 export const metadata: Metadata = {
-  title: "The Global 7 Wall — 7FC",
+  title: "Global Supporter Wall | Join the Worldwide 7FC Community",
   description:
     "Search the Global 7 Wall, find approved 7FC supporters by country, era, and supporter number, and raise your 7 as part of an independent football fan tribute.",
   alternates: { canonical: `${SITE_URL}/wall` },

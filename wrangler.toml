@@ -16,6 +16,14 @@ database_name = "7fc-prod"
 database_id = "747fcf59-7492-4b73-97ca-edad62806f27"
 migrations_dir = "migrations"
 
+# R2 bucket for admin-uploaded product images (persistent object storage).
+# Served publicly through /api/images/[...key]. Without this binding the
+# admin upload endpoint returns a clear "storage not configured" error
+# (local `next dev` falls back to writing into public/images/uploads/).
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "7fc-images"
+
 # Secrets (never commit values):
 #   npx wrangler secret put SESSION_SECRET
 # Optional overrides:

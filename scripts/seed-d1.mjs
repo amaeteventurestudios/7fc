@@ -3,7 +3,7 @@
  *   - temporary bootstrap admin (password stored as scrypt hash only)
  *   - default Global Wall settings
  *   - default legal disclaimers
- *   - the 9 default affiliate products
+ *   - (products are imported separately: scripts/import-kit-csv.mjs)
  *
  * Idempotent: existing rows are left untouched (INSERT OR IGNORE).
  *
@@ -65,23 +65,7 @@ const LEGAL = {
     "Product links point to third-party retailers. 7FC does not sell products directly.",
 };
 
-const PRODUCTS = [
-  ["Books & Biographies", "Reading", "/images/7fc-kit-books.webp", "Stories of discipline, hunger, and greatness — for students of the game."],
-  ["Training Cones", "Training", "/images/7fc-kit-training-cones.webp", "Sharpen footwork and agility with simple, repeatable drills."],
-  ["Agility Ladder", "Training", "/images/7fc-kit-agility-ladder.webp", "Fast feet are built one rung at a time. Repetition. Output."],
-  ["Resistance Bands", "Strength", "/images/7fc-kit-resistance-bands.webp", "Explosive power and injury-proofing, anywhere you train."],
-  ["Football", "Essentials", "/images/7fc-kit-football.webp", "Every legacy starts with a ball. Get the touches in."],
-  ["Shin Guards", "Essentials", "/images/7fc-kit-shin-guards.webp", "Protection for the players who never pull out of a challenge."],
-  ["Recovery Roller", "Recovery", "/images/7fc-kit-recovery-roller.webp", "Longevity is a skill. Recover like it matters — because it does."],
-  ["Water Bottle", "Hydration", "/images/7fc-kit-water-bottle.webp", "Fuel the work. Hydration is part of the standard."],
-  ["Gym Bag", "Essentials", "/images/7fc-kit-gym-bag.webp", "Everything you need for the sessions nobody sees."],
-  ["Speed Hurdles", "Training", "/images/7fc-kit-speed-hurdles.webp", "Build the first-step burst that separates good from great."],
-  ["Training Bibs", "Training", "/images/7fc-kit-training-bibs.webp", "Small-sided games, full-sized intensity. Gear for the group session."],
-  ["Ball Pump", "Essentials", "/images/7fc-kit-ball-pump.webp", "A flat ball never made anyone better. Stay ready."],
-  ["Compression Socks", "Recovery", "/images/7fc-kit-compression-socks.webp", "Support the legs that do the work, session after session."],
-  ["Captain Armband", "Essentials", "/images/7fc-kit-captain-armband.webp", "Leadership is a standard you wear. Set the tone."],
-  ["Stretching Strap", "Recovery", "/images/7fc-kit-stretching-strap.webp", "Flexibility is longevity. Stretch like it's part of the job."],
-];
+// Products are seeded via scripts/import-kit-csv.mjs (approved 15-product set).
 
 const now = new Date().toISOString();
 const statements = [];
@@ -105,13 +89,6 @@ for (const [key, value] of Object.entries(LEGAL)) {
   );
 }
 
-PRODUCTS.forEach(([title, category, image, description], i) => {
-  statements.push(
-    `INSERT INTO affiliate_products (id, title, category, image_path, description, affiliate_url, button_text, active, sort_order, click_count)
-     SELECT ${q(crypto.randomUUID())}, ${q(title)}, ${q(category)}, ${q(image)}, ${q(description)}, 'https://www.amazon.com/?tag=YOUR_AFFILIATE_TAG', 'View on Amazon', 1, ${i}, 0
-     WHERE NOT EXISTS (SELECT 1 FROM affiliate_products WHERE title = ${q(title)});`
-  );
-});
 
 const sql = statements.join("\n");
 const mode = process.argv[2];
