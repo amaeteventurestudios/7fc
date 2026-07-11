@@ -229,3 +229,21 @@ export function privacyOwnerAlert(r: {
   const text = `Verified 7FC privacy request\n\nType: ${r.requestType}\nRequester: ${r.email}\nRequest ID: ${r.id}\n${r.details ? `\n${r.details}` : ""}`;
   return { subject, html, text };
 }
+
+export function managementLinkEmail(manageUrl: string): EmailContent {
+  const subject = "Your 7FC supporter management link";
+  const html = layout(subject, `
+    <p style="margin-top:0;">You (or someone using this email address) requested a private link to manage your 7FC Global 7 Wall entry.</p>
+    ${button(manageUrl, "Manage my entry")}
+    <p style="font-size:13px;color:#9ca3af;">Or open this link:<br><a href="${esc(manageUrl)}" style="color:#d4af5e;word-break:break-all;">${esc(manageUrl)}</a></p>
+    <p style="font-size:13px;color:#9ca3af;">This link expires in 1 hour. If you didn't request it, you can safely ignore this email — nothing changes without this link.</p>`);
+  const text = `You (or someone using this email address) requested a private link to manage your 7FC Global 7 Wall entry.
+
+Manage your entry (expires in 1 hour):
+${manageUrl}
+
+If you didn't request it, ignore this email — nothing changes without this link.
+
+Support: support@sevenfc.net`;
+  return { subject, html, text };
+}

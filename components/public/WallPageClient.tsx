@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import ReportEntry from "./ReportEntry";
 import { useMemo, useState } from "react";
 import { CONTAINER, Particles } from "./ui";
 import {
@@ -326,6 +327,7 @@ export default function WallPageClient({
           </div>
           {/* Right panel */}
           <aside className="space-y-6">
+            <ReportEntry />
             <div className="glass-card p-6">
               <h3 className="font-display text-sm font-bold tracking-[0.2em] uppercase text-gold-2 text-center">
                 Top Countries
