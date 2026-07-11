@@ -23,7 +23,8 @@ import { hashPassword } from "./auth";
 import { PRODUCT_FIELD_DEFAULTS } from "./kit";
 import { SUPPORTER_TRUST_DEFAULTS } from "./types";
 
-const DATA_DIR = path.join(process.cwd(), ".data");
+const DATA_DIR =
+  process.env.SEVENFC_DATA_DIR || path.join(process.cwd(), ".data");
 const DB_PATH = path.join(DATA_DIR, "db.json");
 
 export const TEMP_ADMIN_EMAIL =
