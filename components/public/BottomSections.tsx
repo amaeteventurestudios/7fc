@@ -113,11 +113,12 @@ export function SiteFooter({ legal }: { legal: LegalDisclaimers }) {
           </Link>
         ))}
       </nav>
-      {/* Social: X only — no Instagram/Facebook/YouTube/TikTok.
-          TODO: replace href="#" with the real 7FC X profile URL when available. */}
+      {/* Social: X only — no Instagram/Facebook/YouTube/TikTok. */}
       <a
-        href="#"
-        aria-label="7FC on X"
+        href="https://x.com/join7FC"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="7FC on X (opens in a new tab)"
         className="inline-flex items-center justify-center mt-5 w-9 h-9 rounded-full border border-gold/40 text-gold-2 text-sm hover:border-gold transition-colors"
       >
         𝕏
