@@ -5,6 +5,9 @@ import { SITE_URL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
+/** Legal pages change with policy versions, not every build. */
+const POLICY_DATE = new Date("2026-07-11T00:00:00Z");
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const store = await getStore();
   const products = await store.listActiveProducts();
@@ -18,6 +21,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/moments`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
     { url: `${SITE_URL}/records`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
     { url: `${SITE_URL}/about`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${SITE_URL}/contact`, lastModified: POLICY_DATE, changeFrequency: "yearly", priority: 0.5 },
+    { url: `${SITE_URL}/privacy-request`, lastModified: POLICY_DATE, changeFrequency: "yearly", priority: 0.4 },
+    { url: `${SITE_URL}/terms`, lastModified: POLICY_DATE, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${SITE_URL}/privacy`, lastModified: POLICY_DATE, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${SITE_URL}/cookies`, lastModified: POLICY_DATE, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${SITE_URL}/affiliate-disclosure`, lastModified: POLICY_DATE, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${SITE_URL}/disclaimer`, lastModified: POLICY_DATE, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${SITE_URL}/community-guidelines`, lastModified: POLICY_DATE, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${SITE_URL}/accessibility`, lastModified: POLICY_DATE, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${SITE_URL}/security`, lastModified: POLICY_DATE, changeFrequency: "yearly", priority: 0.3 },
   ];
 
   const productPages: MetadataRoute.Sitemap = products
