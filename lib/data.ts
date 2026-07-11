@@ -17,6 +17,10 @@ import type {
   AffiliateProduct,
   LegalDisclaimers,
   ActivityEntry,
+  SecurityToken,
+  OutboxRow,
+  PrivacyRequest,
+  EntryReport,
 } from "./types";
 import type { D1Database } from "./d1-store";
 
@@ -29,6 +33,16 @@ export interface SupporterInput {
   favorite_era: string | null;
   message: string | null;
   show_full_name: boolean;
+  /** Consent evidence captured at submit time (trust layer). */
+  consents?: {
+    terms_version: string;
+    privacy_version: string;
+    display_consent: boolean;
+    marketing_consent: boolean;
+    age_attested: boolean;
+    /** When true the record starts unverified (pending email verification). */
+    require_email_verification: boolean;
+  };
 }
 
 export interface SupporterFilters {
@@ -67,7 +81,8 @@ export interface Store {
   submitSupporter(
     input: SupporterInput
   ): Promise<
-    { supporter_number: number; status: SupporterStatus } | { error: string }
+    | { id: string; supporter_number: number; status: SupporterStatus }
+    | { error: string }
   >;
   listSupporters(filters: SupporterFilters): Promise<Supporter[]>;
   setSupporterStatus(id: string, action: SupporterAction): Promise<boolean>;
@@ -99,6 +114,118 @@ export interface Store {
     opts: { email?: string; passwordHash?: string }
   ): Promise<void>;
   getStats(): Promise<{ stats: DashboardStats; activity: ActivityEntry[] }>;
+
+  // ---------- trust layer ----------
+  /** Full supporter row by id (includes private fields; admin/self-service only). */
+  getSupporterById(id: string): Promise<Supporter | null>;
+  /** Active (non-deleted) supporter with this normalized email, if any. */
+  findSupporterByEmail(email: string): Promise<Supporter | null>;
+  /** Mark email verified; moves pending->pending_moderation (or approved when
+   *  moderation is off). Returns the updated supporter or null. */
+  markSupporterVerified(id: string): Promise<Supporter | null>;
+  /** Patch self-service/lifecycle fields (correction, consent changes, unpublish). */
+  updateSupporterFields(
+    id: string,
+    patch: Partial<
+      Pick<
+        Supporter,
+        | "first_name"
+        | "last_name"
+        | "favorite_era"
+        | "message"
+        | "show_full_name"
+        | "display_consent"
+        | "display_consent_at"
+        | "display_consent_withdrawn_at"
+        | "marketing_consent"
+        | "marketing_consent_at"
+        | "marketing_withdrawn_at"
+        | "status"
+        | "published_at"
+        | "moderation_note"
+      >
+    >
+  ): Promise<boolean>;
+  /** GDPR-style deletion: anonymize personal fields, keep the number reserved. */
+  anonymizeSupporter(id: string): Promise<boolean>;
+
+  createSecurityToken(t: {
+    purpose: SecurityToken["purpose"];
+    subject_id: string;
+    token_hash: string;
+    expires_at: string;
+  }): Promise<void>;
+  /** Atomically consume an unused, unexpired token (one-time use). */
+  consumeSecurityToken(
+    purpose: SecurityToken["purpose"],
+    token_hash: string
+  ): Promise<SecurityToken | null>;
+  /** Peek without consuming (for GET rendering of manage pages). */
+  peekSecurityToken(
+    purpose: SecurityToken["purpose"],
+    token_hash: string
+  ): Promise<SecurityToken | null>;
+  invalidateSecurityTokens(
+    purpose: SecurityToken["purpose"],
+    subject_id: string
+  ): Promise<void>;
+
+  enqueueOutbox(row: {
+    event_key: string;
+    notification_type: string;
+    related_id: string | null;
+    recipient: string;
+    from_addr: string;
+    reply_to: string | null;
+    subject: string;
+    body_html: string | null;
+    body_text: string | null;
+    status: OutboxRow["status"];
+  }): Promise<void>;
+  /** Claim due pending messages (marks them processing). */
+  claimDueOutbox(limit: number): Promise<OutboxRow[]>;
+  finishOutboxAttempt(
+    id: string,
+    result: {
+      status: OutboxRow["status"];
+      provider?: string;
+      providerMessageId?: string;
+      error?: string;
+      nextAttemptAt?: string | null;
+    }
+  ): Promise<void>;
+  outboxSummary(): Promise<{ pending: number; sent: number; failed: number }>;
+
+  isEmailSuppressed(email: string): Promise<boolean>;
+  addEmailSuppression(email: string, reason: string): Promise<void>;
+
+  createPrivacyRequest(r: {
+    email: string;
+    request_type: PrivacyRequest["request_type"];
+    details: string | null;
+  }): Promise<PrivacyRequest>;
+  getPrivacyRequest(id: string): Promise<PrivacyRequest | null>;
+  updatePrivacyRequest(
+    id: string,
+    patch: Partial<Pick<PrivacyRequest, "status" | "verified_at" | "completed_at" | "note">>
+  ): Promise<boolean>;
+  listPrivacyRequests(): Promise<PrivacyRequest[]>;
+
+  createEntryReport(r: {
+    supporter_id: string;
+    reason: string;
+    details: string | null;
+    reporter_hash: string | null;
+  }): Promise<{ created: boolean }>;
+  listEntryReports(status?: EntryReport["status"]): Promise<EntryReport[]>;
+  updateEntryReport(id: string, status: EntryReport["status"]): Promise<boolean>;
+
+  /** Enforce the retention schedule (lib/policy.ts). Never touches active supporters. */
+  retentionCleanup(): Promise<{
+    removedSupporters: number;
+    removedTokens: number;
+    redactedEmails: number;
+  }>;
 }
 
 /** Temporary bootstrap admin credentials (overridable via env, never committed). */

@@ -22,7 +22,13 @@ import type {
   AffiliateProduct,
   LegalDisclaimers,
   ActivityEntry,
+  SecurityToken,
+  OutboxRow,
+  PrivacyRequest,
+  EntryReport,
 } from "./types";
+import { SUPPORTER_TRUST_DEFAULTS } from "./types";
+import { RETENTION } from "./policy";
 
 const STATUS_FOR_ACTION: Record<SupporterAction, SupporterStatus> = {
   approve: "approved",
@@ -39,7 +45,9 @@ export class JsonStore implements Store {
       products: db.affiliate_products
         .filter((p) => p.active)
         .sort((a, b) => a.sort_order - b.sort_order),
-      approved: db.supporters.filter((s) => s.status === "approved"),
+      approved: db.supporters.filter(
+        (s) => s.status === "approved" && s.display_consent
+      ),
     };
   }
 
@@ -49,14 +57,33 @@ export class JsonStore implements Store {
       if (!settings.enable_submissions || settings.emergency_lock) {
         return { error: "Submissions are currently closed." };
       }
+      const { consents: c, ...fields } = input;
+      const requireVerification = c?.require_email_verification ?? false;
+      const now = new Date().toISOString();
+      const status: SupporterStatus =
+        requireVerification || settings.require_manual_approval
+          ? "pending"
+          : "approved";
       const supporter: Supporter = {
         id: crypto.randomUUID(),
         supporter_number: db.next_supporter_number++,
-        ...input,
+        ...SUPPORTER_TRUST_DEFAULTS,
+        ...fields,
         message: settings.allow_fan_messages ? input.message : null,
         show_full_name: settings.allow_full_names && input.show_full_name,
-        status: settings.require_manual_approval ? "pending" : "approved",
-        created_at: new Date().toISOString(),
+        status,
+        created_at: now,
+        email_verified_at: requireVerification ? null : now,
+        terms_version: c?.terms_version ?? null,
+        terms_accepted_at: c ? now : null,
+        privacy_version: c?.privacy_version ?? null,
+        privacy_ack_at: c ? now : null,
+        display_consent: c ? c.display_consent : true,
+        display_consent_at: c?.display_consent ? now : null,
+        marketing_consent: c?.marketing_consent ?? false,
+        marketing_consent_at: c?.marketing_consent ? now : null,
+        age_attested_at: c?.age_attested ? now : null,
+        published_at: status === "approved" ? now : null,
       };
       db.supporters.push(supporter);
       logActivity(
@@ -65,6 +92,7 @@ export class JsonStore implements Store {
         `New supporter #${supporter.supporter_number} (${supporter.first_name}, ${supporter.country_name}) submitted`
       );
       return {
+        id: supporter.id,
         supporter_number: supporter.supporter_number,
         status: supporter.status,
       };
@@ -97,6 +125,8 @@ export class JsonStore implements Store {
       const s = db.supporters.find((x) => x.id === id);
       if (!s) return false;
       s.status = STATUS_FOR_ACTION[action];
+      if (action === "approve" && !s.published_at)
+        s.published_at = new Date().toISOString();
       const type =
         action === "approve"
           ? "supporter_approved"
@@ -287,5 +317,406 @@ export class JsonStore implements Store {
       },
       activity: db.activity_log.slice(0, 20),
     };
+  }
+
+  // ---------- trust layer ----------
+
+  async getSupporterById(id: string): Promise<Supporter | null> {
+    const db = await readDb();
+    return db.supporters.find((s) => s.id === id) ?? null;
+  }
+
+  async findSupporterByEmail(email: string): Promise<Supporter | null> {
+    const db = await readDb();
+    return (
+      db.supporters
+        .filter(
+          (s) =>
+            s.email.toLowerCase() === email.toLowerCase() &&
+            s.status !== "deleted"
+        )
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ?? null
+    );
+  }
+
+  async markSupporterVerified(id: string): Promise<Supporter | null> {
+    return mutate((db) => {
+      const s = db.supporters.find((x) => x.id === id);
+      if (!s || s.email_verified_at || s.status !== "pending") return null;
+      const now = new Date().toISOString();
+      s.email_verified_at = now;
+      if (!db.global_wall_settings.require_manual_approval) {
+        s.status = "approved";
+        s.published_at = now;
+      }
+      return { ...s };
+    });
+  }
+
+  async updateSupporterFields(
+    id: string,
+    patch: Record<string, unknown>
+  ): Promise<boolean> {
+    return mutate((db) => {
+      const s = db.supporters.find((x) => x.id === id && x.status !== "deleted");
+      if (!s) return false;
+      Object.assign(s as unknown as Record<string, unknown>, patch);
+      return true;
+    });
+  }
+
+  async anonymizeSupporter(id: string): Promise<boolean> {
+    return mutate((db) => {
+      const s = db.supporters.find((x) => x.id === id);
+      if (!s) return false;
+      s.first_name = "Deleted";
+      s.last_name = null;
+      s.email = `deleted-${s.id}@invalid.sevenfc.net`;
+      s.favorite_era = null;
+      s.message = null;
+      s.show_full_name = false;
+      s.display_consent = false;
+      s.marketing_consent = false;
+      s.status = "deleted";
+      s.deleted_at = new Date().toISOString();
+      s.moderation_note = null;
+      db.security_tokens = (db.security_tokens ?? []).filter(
+        (t) => t.subject_id !== id
+      );
+      logActivity(
+        db,
+        "supporter_deleted",
+        `Supporter record ${id} anonymized (privacy request)`
+      );
+      return true;
+    });
+  }
+
+  async createSecurityToken(t: {
+    purpose: SecurityToken["purpose"];
+    subject_id: string;
+    token_hash: string;
+    expires_at: string;
+  }): Promise<void> {
+    await mutate((db) => {
+      (db.security_tokens ??= []).push({
+        id: crypto.randomUUID(),
+        ...t,
+        used_at: null,
+        created_at: new Date().toISOString(),
+      });
+    });
+  }
+
+  async consumeSecurityToken(
+    purpose: SecurityToken["purpose"],
+    token_hash: string
+  ): Promise<SecurityToken | null> {
+    return mutate((db) => {
+      const now = new Date().toISOString();
+      const t = (db.security_tokens ?? []).find(
+        (x) =>
+          x.purpose === purpose &&
+          x.token_hash === token_hash &&
+          !x.used_at &&
+          x.expires_at > now
+      );
+      if (!t) return null;
+      t.used_at = now;
+      return { ...t };
+    });
+  }
+
+  async peekSecurityToken(
+    purpose: SecurityToken["purpose"],
+    token_hash: string
+  ): Promise<SecurityToken | null> {
+    const db = await readDb();
+    const now = new Date().toISOString();
+    return (
+      (db.security_tokens ?? []).find(
+        (x) =>
+          x.purpose === purpose &&
+          x.token_hash === token_hash &&
+          !x.used_at &&
+          x.expires_at > now
+      ) ?? null
+    );
+  }
+
+  async invalidateSecurityTokens(
+    purpose: SecurityToken["purpose"],
+    subject_id: string
+  ): Promise<void> {
+    await mutate((db) => {
+      const now = new Date().toISOString();
+      for (const t of db.security_tokens ?? []) {
+        if (t.purpose === purpose && t.subject_id === subject_id && !t.used_at)
+          t.used_at = now;
+      }
+    });
+  }
+
+  async enqueueOutbox(row: {
+    event_key: string;
+    notification_type: string;
+    related_id: string | null;
+    recipient: string;
+    from_addr: string;
+    reply_to: string | null;
+    subject: string;
+    body_html: string | null;
+    body_text: string | null;
+    status: OutboxRow["status"];
+  }): Promise<void> {
+    await mutate((db) => {
+      db.email_outbox ??= [];
+      if (db.email_outbox.some((m) => m.event_key === row.event_key)) return;
+      const now = new Date().toISOString();
+      db.email_outbox.push({
+        id: crypto.randomUUID(),
+        ...row,
+        attempt_count: 0,
+        next_attempt_at: row.status === "pending" ? now : null,
+        last_attempt_at: null,
+        sent_at: null,
+        provider: null,
+        provider_message_id: null,
+        last_error: null,
+        created_at: now,
+        updated_at: now,
+      });
+    });
+  }
+
+  async claimDueOutbox(limit: number): Promise<OutboxRow[]> {
+    return mutate((db) => {
+      const now = new Date().toISOString();
+      const due = (db.email_outbox ?? [])
+        .filter(
+          (m) =>
+            m.status === "pending" &&
+            (!m.next_attempt_at || m.next_attempt_at <= now)
+        )
+        .slice(0, limit);
+      for (const m of due) {
+        m.status = "processing";
+        m.updated_at = now;
+      }
+      return due.map((m) => ({ ...m }));
+    });
+  }
+
+  async finishOutboxAttempt(
+    id: string,
+    result: {
+      status: OutboxRow["status"];
+      provider?: string;
+      providerMessageId?: string;
+      error?: string;
+      nextAttemptAt?: string | null;
+    }
+  ): Promise<void> {
+    await mutate((db) => {
+      const m = (db.email_outbox ?? []).find((x) => x.id === id);
+      if (!m) return;
+      const now = new Date().toISOString();
+      m.status = result.status;
+      m.attempt_count += 1;
+      m.last_attempt_at = now;
+      if (result.status === "sent") {
+        m.sent_at = now;
+        m.body_html = null;
+        m.body_text = null;
+      }
+      if (result.provider) m.provider = result.provider;
+      if (result.providerMessageId)
+        m.provider_message_id = result.providerMessageId;
+      m.last_error = result.error ?? null;
+      m.next_attempt_at = result.nextAttemptAt ?? null;
+      m.updated_at = now;
+    });
+  }
+
+  async outboxSummary() {
+    const db = await readDb();
+    const list = db.email_outbox ?? [];
+    return {
+      pending: list.filter((m) => m.status === "pending" || m.status === "processing").length,
+      sent: list.filter((m) => m.status === "sent").length,
+      failed: list.filter((m) => m.status === "failed").length,
+    };
+  }
+
+  async isEmailSuppressed(email: string): Promise<boolean> {
+    const db = await readDb();
+    return (db.email_suppressions ?? []).some(
+      (s) => s.email === email.toLowerCase()
+    );
+  }
+
+  async addEmailSuppression(email: string, reason: string): Promise<void> {
+    await mutate((db) => {
+      db.email_suppressions ??= [];
+      if (!db.email_suppressions.some((s) => s.email === email.toLowerCase()))
+        db.email_suppressions.push({
+          email: email.toLowerCase(),
+          reason,
+          created_at: new Date().toISOString(),
+        });
+    });
+  }
+
+  async createPrivacyRequest(r: {
+    email: string;
+    request_type: PrivacyRequest["request_type"];
+    details: string | null;
+  }): Promise<PrivacyRequest> {
+    return mutate((db) => {
+      const req: PrivacyRequest = {
+        id: crypto.randomUUID(),
+        ...r,
+        status: "pending_verification",
+        verified_at: null,
+        completed_at: null,
+        note: null,
+        created_at: new Date().toISOString(),
+      };
+      (db.privacy_requests ??= []).push(req);
+      return { ...req };
+    });
+  }
+
+  async getPrivacyRequest(id: string): Promise<PrivacyRequest | null> {
+    const db = await readDb();
+    return (db.privacy_requests ?? []).find((r) => r.id === id) ?? null;
+  }
+
+  async updatePrivacyRequest(
+    id: string,
+    patch: Partial<
+      Pick<PrivacyRequest, "status" | "verified_at" | "completed_at" | "note">
+    >
+  ): Promise<boolean> {
+    return mutate((db) => {
+      const r = (db.privacy_requests ?? []).find((x) => x.id === id);
+      if (!r) return false;
+      Object.assign(r, patch);
+      return true;
+    });
+  }
+
+  async listPrivacyRequests(): Promise<PrivacyRequest[]> {
+    const db = await readDb();
+    return [...(db.privacy_requests ?? [])].sort((a, b) =>
+      b.created_at.localeCompare(a.created_at)
+    );
+  }
+
+  async createEntryReport(r: {
+    supporter_id: string;
+    reason: string;
+    details: string | null;
+    reporter_hash: string | null;
+  }): Promise<{ created: boolean }> {
+    return mutate((db) => {
+      db.entry_reports ??= [];
+      if (
+        r.reporter_hash &&
+        db.entry_reports.some(
+          (x) =>
+            x.supporter_id === r.supporter_id &&
+            x.reporter_hash === r.reporter_hash &&
+            x.status === "open"
+        )
+      )
+        return { created: false };
+      db.entry_reports.push({
+        id: crypto.randomUUID(),
+        ...r,
+        status: "open",
+        created_at: new Date().toISOString(),
+      });
+      return { created: true };
+    });
+  }
+
+  async listEntryReports(
+    status?: EntryReport["status"]
+  ): Promise<EntryReport[]> {
+    const db = await readDb();
+    const list = db.entry_reports ?? [];
+    return (status ? list.filter((r) => r.status === status) : list).sort(
+      (a, b) => b.created_at.localeCompare(a.created_at)
+    );
+  }
+
+  async updateEntryReport(
+    id: string,
+    status: EntryReport["status"]
+  ): Promise<boolean> {
+    return mutate((db) => {
+      const r = (db.entry_reports ?? []).find((x) => x.id === id);
+      if (!r) return false;
+      r.status = status;
+      return true;
+    });
+  }
+
+  async retentionCleanup() {
+    return mutate((db) => {
+      const now = Date.now();
+      const iso = (ms: number) => new Date(now - ms).toISOString();
+      const beforeSupporters = db.supporters.length;
+      db.supporters = db.supporters.filter(
+        (s) =>
+          !(
+            s.status === "pending" &&
+            !s.email_verified_at &&
+            s.created_at < iso(RETENTION.unverifiedSignupMs)
+          )
+      );
+      const beforeTokens = (db.security_tokens ?? []).length;
+      const nowIso = new Date(now).toISOString();
+      db.security_tokens = (db.security_tokens ?? []).filter(
+        (t) =>
+          !(
+            (t.used_at || t.expires_at < nowIso) &&
+            t.created_at < iso(RETENTION.tokenRowMs)
+          )
+      );
+      let redacted = 0;
+      for (const m of db.email_outbox ?? []) {
+        if (
+          m.status !== "pending" &&
+          m.status !== "processing" &&
+          (m.body_html || m.body_text) &&
+          m.created_at < iso(RETENTION.outboxBodyMs)
+        ) {
+          m.body_html = null;
+          m.body_text = null;
+          redacted++;
+        }
+      }
+      db.email_outbox = (db.email_outbox ?? []).filter(
+        (m) =>
+          m.status === "pending" ||
+          m.status === "processing" ||
+          m.created_at >= iso(RETENTION.outboxRowMs)
+      );
+      db.entry_reports = (db.entry_reports ?? []).filter(
+        (r) => r.status === "open" || r.created_at >= iso(RETENTION.reportRowMs)
+      );
+      db.privacy_requests = (db.privacy_requests ?? []).filter(
+        (r) =>
+          (r.status !== "completed" && r.status !== "rejected") ||
+          r.created_at >= iso(RETENTION.privacyRequestMs)
+      );
+      return {
+        removedSupporters: beforeSupporters - db.supporters.length,
+        removedTokens: beforeTokens - (db.security_tokens ?? []).length,
+        redactedEmails: redacted,
+      };
+    });
   }
 }

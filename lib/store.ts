@@ -21,6 +21,7 @@ import type {
 } from "./types";
 import { hashPassword } from "./auth";
 import { PRODUCT_FIELD_DEFAULTS } from "./kit";
+import { SUPPORTER_TRUST_DEFAULTS } from "./types";
 
 const DATA_DIR = path.join(process.cwd(), ".data");
 const DB_PATH = path.join(DATA_DIR, "db.json");
@@ -129,6 +130,12 @@ function seedDb(): Database {
     show_full_name: i === 0,
     status: "approved",
     created_at: now,
+    ...SUPPORTER_TRUST_DEFAULTS,
+    email_verified_at: now,
+    display_consent: true,
+    display_consent_at: now,
+    age_attested_at: now,
+    published_at: now,
   }));
   return {
     admin_users: [admin],
@@ -152,6 +159,24 @@ export async function readDb(): Promise<Database> {
       ...PRODUCT_FIELD_DEFAULTS,
       ...p,
     }));
+    // Normalize supporters written before the trust-layer fields existed:
+    // legacy rows are treated as verified + display-consented at signup time.
+    db.supporters = db.supporters.map((s) => {
+      const legacyDefaults = {
+        ...SUPPORTER_TRUST_DEFAULTS,
+        email_verified_at: s.created_at,
+        display_consent: true,
+        display_consent_at: s.created_at,
+        age_attested_at: s.created_at,
+        published_at: s.status === "approved" ? s.created_at : null,
+      };
+      return { ...legacyDefaults, ...s };
+    });
+    db.security_tokens ??= [];
+    db.email_outbox ??= [];
+    db.privacy_requests ??= [];
+    db.entry_reports ??= [];
+    db.email_suppressions ??= [];
     return db;
   } catch {
     const db = seedDb();

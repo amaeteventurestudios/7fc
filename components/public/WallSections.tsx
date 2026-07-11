@@ -9,6 +9,7 @@ import { formatPublicDate } from "@/lib/format";
 import { ERAS } from "@/lib/types";
 import type { GlobalWallSettings } from "@/lib/types";
 import type { PublicSupporter } from "@/lib/store";
+import TurnstileWidget from "./TurnstileWidget";
 
 export type { PublicSupporter };
 
@@ -217,6 +218,7 @@ export function LatestSupporters({
 interface SubmitResult {
   supporter_number: number;
   status: string;
+  needs_verification?: boolean;
 }
 
 export function GlobalWallForm({ settings }: { settings: GlobalWallSettings }) {
@@ -267,10 +269,12 @@ export function GlobalWallForm({ settings }: { settings: GlobalWallSettings }) {
               <p className="font-display text-4xl md:text-5xl text-white mt-5 font-black">
                 Supporter #{String(result.supporter_number).padStart(4, "0")}
               </p>
-              <p className="text-sm md:text-base text-gray-300 mt-5">
-                {result.status === "pending"
-                  ? "Your profile will appear on the Global 7 Wall after approval."
-                  : "You are now live on the Global 7 Wall."}
+              <p className="text-sm md:text-base text-gray-300 mt-5" role="status">
+                {result.needs_verification
+                  ? "One step left: we've sent a verification email to your address. Click the link inside within 24 hours to confirm your signup. Your entry will appear on the Global 7 Wall after verification and approval."
+                  : result.status === "pending"
+                    ? "Your profile will appear on the Global 7 Wall after approval."
+                    : "You are now live on the Global 7 Wall."}
               </p>
               <p className="text-[11px] tracking-[0.2em] uppercase text-gold/70 mt-5">
                 I raised my 7 on SevenFC.net
@@ -379,11 +383,51 @@ export function GlobalWallForm({ settings }: { settings: GlobalWallSettings }) {
                   )}
                 </div>
                 {settings.allow_full_names && (
-                  <label className="flex items-center justify-center md:justify-start gap-2 text-xs text-gray-300">
-                    <input type="checkbox" name="show_full_name" value="1" className="accent-[#d4af5e]" />
-                    Show my full name on the Global 7 Wall
+                  <label className="flex items-start justify-center md:justify-start gap-2 text-xs text-gray-300">
+                    <input type="checkbox" name="show_full_name" value="1" className="accent-[#d4af5e] mt-0.5" />
+                    <span>Show my full name on the Global 7 Wall (otherwise only your first name appears)</span>
                   </label>
                 )}
+                <div className="border-t border-gold/15 pt-4 space-y-3 text-left">
+                  <p className="text-[11px] text-gray-400 leading-relaxed">
+                    <strong className="text-gold-2">What appears publicly if approved:</strong>{" "}
+                    your first name (full name only if you tick the box above),
+                    country, favorite era, message, and supporter number. Your
+                    email address always stays private.
+                  </p>
+                  <label className="flex items-start gap-2 text-xs text-gray-300">
+                    <input type="checkbox" name="terms_accepted" value="1" required className="accent-[#d4af5e] mt-0.5" />
+                    <span>
+                      I agree to the{" "}
+                      <Link href="/terms" className="text-gold-2 underline underline-offset-2" target="_blank">
+                        Terms of Use
+                      </Link>{" "}
+                      and acknowledge the{" "}
+                      <Link href="/privacy" className="text-gold-2 underline underline-offset-2" target="_blank">
+                        Privacy Policy
+                      </Link>
+                      . *
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2 text-xs text-gray-300">
+                    <input type="checkbox" name="age_attested" value="1" required className="accent-[#d4af5e] mt-0.5" />
+                    <span>I confirm that I am at least 16 years old. *</span>
+                  </label>
+                  <label className="flex items-start gap-2 text-xs text-gray-300">
+                    <input type="checkbox" name="display_consent" value="1" className="accent-[#d4af5e] mt-0.5" />
+                    <span>
+                      I consent to 7FC displaying my selected information and
+                      message on the public Global 7 Wall. I understand that
+                      approved public content may be indexed, cached, or
+                      summarized by search engines and AI services.
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2 text-xs text-gray-300">
+                    <input type="checkbox" name="marketing_consent" value="1" className="accent-[#d4af5e] mt-0.5" />
+                    <span>I would like to receive occasional 7FC news and updates. (Optional)</span>
+                  </label>
+                </div>
+                <TurnstileWidget />
                 {/* Honeypot — humans never see or fill this */}
                 <input
                   type="text"

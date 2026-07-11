@@ -35,7 +35,13 @@ import type {
   AffiliateProduct,
   LegalDisclaimers,
   ActivityEntry,
+  SecurityToken,
+  OutboxRow,
+  PrivacyRequest,
+  EntryReport,
 } from "./types";
+import { SUPPORTER_TRUST_DEFAULTS } from "./types";
+import { RETENTION } from "./policy";
 
 /** Minimal structural typing for the D1 binding (avoids a hard dependency on workers-types). */
 export interface D1PreparedStatement {
@@ -49,8 +55,13 @@ export interface D1Database {
   batch(statements: D1PreparedStatement[]): Promise<unknown[]>;
 }
 
-type SupporterRow = Omit<Supporter, "show_full_name"> & {
+type SupporterRow = Omit<
+  Supporter,
+  "show_full_name" | "display_consent" | "marketing_consent"
+> & {
   show_full_name: number;
+  display_consent: number | null;
+  marketing_consent: number | null;
 };
 type ProductRow = Omit<
   AffiliateProduct,
@@ -72,7 +83,13 @@ const STATUS_FOR_ACTION: Record<SupporterAction, SupporterStatus> = {
 };
 
 function toSupporter(r: SupporterRow): Supporter {
-  return { ...r, show_full_name: !!r.show_full_name };
+  return {
+    ...SUPPORTER_TRUST_DEFAULTS,
+    ...r,
+    show_full_name: !!r.show_full_name,
+    display_consent: !!r.display_consent,
+    marketing_consent: !!r.marketing_consent,
+  };
 }
 function toProduct(r: ProductRow): AffiliateProduct {
   const { content_json, faqs_json, ...rest } = r;
@@ -178,7 +195,9 @@ export class D1Store implements Store {
         )
         .all<ProductRow>(),
       this.db
-        .prepare("SELECT * FROM supporters WHERE status = 'approved'")
+        .prepare(
+          "SELECT * FROM supporters WHERE status = 'approved' AND display_consent = 1"
+        )
         .all<SupporterRow>(),
     ]);
     return {
@@ -196,17 +215,25 @@ export class D1Store implements Store {
     if (!settings.enable_submissions || settings.emergency_lock) {
       return { error: "Submissions are currently closed." };
     }
-    const status: SupporterStatus = settings.require_manual_approval
-      ? "pending"
-      : "approved";
+    const c = input.consents;
+    const requireVerification = c?.require_email_verification ?? false;
+    const status: SupporterStatus =
+      requireVerification || settings.require_manual_approval
+        ? "pending"
+        : "approved";
     const id = crypto.randomUUID();
+    const now = new Date().toISOString();
     // supporter_number assigned atomically in the INSERT (numbers start at 7)
     await this.db
       .prepare(
         `INSERT INTO supporters
            (id, supporter_number, first_name, last_name, email, country_name,
-            country_code, favorite_era, message, show_full_name, status, created_at)
-         SELECT ?, COALESCE(MAX(supporter_number), 6) + 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            country_code, favorite_era, message, show_full_name, status, created_at,
+            email_verified_at, terms_version, terms_accepted_at, privacy_version,
+            privacy_ack_at, display_consent, display_consent_at, marketing_consent,
+            marketing_consent_at, age_attested_at, published_at)
+         SELECT ?, COALESCE(MAX(supporter_number), 6) + 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
          FROM supporters`
       )
       .bind(
@@ -220,7 +247,18 @@ export class D1Store implements Store {
         settings.allow_fan_messages ? input.message : null,
         settings.allow_full_names && input.show_full_name ? 1 : 0,
         status,
-        new Date().toISOString()
+        now,
+        requireVerification ? null : now,
+        c?.terms_version ?? null,
+        c ? now : null,
+        c?.privacy_version ?? null,
+        c ? now : null,
+        c ? (c.display_consent ? 1 : 0) : 1,
+        c?.display_consent ? now : null,
+        c?.marketing_consent ? 1 : 0,
+        c?.marketing_consent ? now : null,
+        c?.age_attested ? now : null,
+        status === "approved" ? now : null
       )
       .run();
     const row = await this.db
@@ -232,7 +270,7 @@ export class D1Store implements Store {
       "supporter_submitted",
       `New supporter #${supporter_number} (${input.first_name}, ${input.country_name}) submitted`
     );
-    return { supporter_number, status };
+    return { id, supporter_number, status };
   }
 
   async listSupporters(filters: SupporterFilters): Promise<Supporter[]> {
@@ -274,8 +312,10 @@ export class D1Store implements Store {
       .first<{ supporter_number: number }>();
     if (!row) return false;
     await this.db
-      .prepare("UPDATE supporters SET status = ? WHERE id = ?")
-      .bind(status, id)
+      .prepare(
+        "UPDATE supporters SET status = ?, published_at = CASE WHEN ? = 'approved' THEN COALESCE(published_at, ?) ELSE published_at END WHERE id = ?"
+      )
+      .bind(status, status, new Date().toISOString(), id)
       .run();
     const type =
       action === "approve"
@@ -614,6 +654,457 @@ export class D1Store implements Store {
         today_signups: totals?.today ?? 0,
       },
       activity: activity.results,
+    };
+  }
+
+  // ---------- trust layer ----------
+
+  async getSupporterById(id: string): Promise<Supporter | null> {
+    const row = await this.db
+      .prepare("SELECT * FROM supporters WHERE id = ?")
+      .bind(id)
+      .first<SupporterRow>();
+    return row ? toSupporter(row) : null;
+  }
+
+  async findSupporterByEmail(email: string): Promise<Supporter | null> {
+    const row = await this.db
+      .prepare(
+        "SELECT * FROM supporters WHERE LOWER(email) = LOWER(?) AND status != 'deleted' ORDER BY created_at DESC LIMIT 1"
+      )
+      .bind(email)
+      .first<SupporterRow>();
+    return row ? toSupporter(row) : null;
+  }
+
+  async markSupporterVerified(id: string): Promise<Supporter | null> {
+    const settings = await this.getSettings();
+    const now = new Date().toISOString();
+    const nextStatus: SupporterStatus = settings.require_manual_approval
+      ? "pending"
+      : "approved";
+    const res = await this.db
+      .prepare(
+        `UPDATE supporters
+         SET email_verified_at = ?, status = ?, published_at = CASE WHEN ? = 'approved' THEN ? ELSE published_at END
+         WHERE id = ? AND email_verified_at IS NULL AND status = 'pending'`
+      )
+      .bind(now, nextStatus, nextStatus, now, id)
+      .run();
+    if (!res.meta.changes) return null;
+    return this.getSupporterById(id);
+  }
+
+  async updateSupporterFields(
+    id: string,
+    patch: Record<string, unknown>
+  ): Promise<boolean> {
+    const allowed = new Set([
+      "first_name",
+      "last_name",
+      "favorite_era",
+      "message",
+      "show_full_name",
+      "display_consent",
+      "display_consent_at",
+      "display_consent_withdrawn_at",
+      "marketing_consent",
+      "marketing_consent_at",
+      "marketing_withdrawn_at",
+      "status",
+      "published_at",
+      "moderation_note",
+    ]);
+    const keys = Object.keys(patch).filter((k) => allowed.has(k));
+    if (keys.length === 0) return false;
+    const sets = keys.map((k) => `${k} = ?`).join(", ");
+    const values = keys.map((k) => {
+      const v = patch[k];
+      return typeof v === "boolean" ? (v ? 1 : 0) : v;
+    });
+    const res = await this.db
+      .prepare(`UPDATE supporters SET ${sets} WHERE id = ? AND status != 'deleted'`)
+      .bind(...values, id)
+      .run();
+    return !!res.meta.changes;
+  }
+
+  async anonymizeSupporter(id: string): Promise<boolean> {
+    const now = new Date().toISOString();
+    const res = await this.db
+      .prepare(
+        `UPDATE supporters SET
+           first_name = 'Deleted', last_name = NULL,
+           email = 'deleted-' || id || '@invalid.sevenfc.net',
+           favorite_era = NULL, message = NULL, show_full_name = 0,
+           display_consent = 0, marketing_consent = 0,
+           status = 'deleted', deleted_at = ?, moderation_note = NULL
+         WHERE id = ?`
+      )
+      .bind(now, id)
+      .run();
+    if (res.meta.changes) {
+      await this.invalidateSecurityTokens("manage", id);
+      await this.invalidateSecurityTokens("verify", id);
+      await this.log("supporter_deleted", `Supporter record ${id} anonymized (privacy request)`);
+    }
+    return !!res.meta.changes;
+  }
+
+  async createSecurityToken(t: {
+    purpose: SecurityToken["purpose"];
+    subject_id: string;
+    token_hash: string;
+    expires_at: string;
+  }): Promise<void> {
+    await this.db
+      .prepare(
+        "INSERT INTO security_tokens (id, purpose, subject_id, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+      )
+      .bind(
+        crypto.randomUUID(),
+        t.purpose,
+        t.subject_id,
+        t.token_hash,
+        t.expires_at,
+        new Date().toISOString()
+      )
+      .run();
+  }
+
+  async consumeSecurityToken(
+    purpose: SecurityToken["purpose"],
+    token_hash: string
+  ): Promise<SecurityToken | null> {
+    const now = new Date().toISOString();
+    // Atomic one-time consumption: only an unused, unexpired token flips.
+    const res = await this.db
+      .prepare(
+        "UPDATE security_tokens SET used_at = ? WHERE purpose = ? AND token_hash = ? AND used_at IS NULL AND expires_at > ?"
+      )
+      .bind(now, purpose, token_hash, now)
+      .run();
+    if (!res.meta.changes) return null;
+    const row = await this.db
+      .prepare("SELECT * FROM security_tokens WHERE purpose = ? AND token_hash = ?")
+      .bind(purpose, token_hash)
+      .first<SecurityToken>();
+    return row ?? null;
+  }
+
+  async peekSecurityToken(
+    purpose: SecurityToken["purpose"],
+    token_hash: string
+  ): Promise<SecurityToken | null> {
+    const row = await this.db
+      .prepare(
+        "SELECT * FROM security_tokens WHERE purpose = ? AND token_hash = ? AND used_at IS NULL AND expires_at > ?"
+      )
+      .bind(purpose, token_hash, new Date().toISOString())
+      .first<SecurityToken>();
+    return row ?? null;
+  }
+
+  async invalidateSecurityTokens(
+    purpose: SecurityToken["purpose"],
+    subject_id: string
+  ): Promise<void> {
+    await this.db
+      .prepare(
+        "UPDATE security_tokens SET used_at = ? WHERE purpose = ? AND subject_id = ? AND used_at IS NULL"
+      )
+      .bind(new Date().toISOString(), purpose, subject_id)
+      .run();
+  }
+
+  async enqueueOutbox(row: {
+    event_key: string;
+    notification_type: string;
+    related_id: string | null;
+    recipient: string;
+    from_addr: string;
+    reply_to: string | null;
+    subject: string;
+    body_html: string | null;
+    body_text: string | null;
+    status: OutboxRow["status"];
+  }): Promise<void> {
+    const now = new Date().toISOString();
+    // ON CONFLICT DO NOTHING = idempotency on event_key.
+    await this.db
+      .prepare(
+        `INSERT INTO email_outbox
+           (id, event_key, notification_type, related_id, recipient, from_addr,
+            reply_to, subject, body_html, body_text, status, next_attempt_at,
+            created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(event_key) DO NOTHING`
+      )
+      .bind(
+        crypto.randomUUID(),
+        row.event_key,
+        row.notification_type,
+        row.related_id,
+        row.recipient,
+        row.from_addr,
+        row.reply_to,
+        row.subject,
+        row.body_html,
+        row.body_text,
+        row.status,
+        row.status === "pending" ? now : null,
+        now,
+        now
+      )
+      .run();
+  }
+
+  async claimDueOutbox(limit: number): Promise<OutboxRow[]> {
+    const now = new Date().toISOString();
+    const { results } = await this.db
+      .prepare(
+        `SELECT * FROM email_outbox
+         WHERE status = 'pending' AND (next_attempt_at IS NULL OR next_attempt_at <= ?)
+         ORDER BY created_at ASC LIMIT ?`
+      )
+      .bind(now, limit)
+      .all<OutboxRow>();
+    for (const row of results) {
+      await this.db
+        .prepare("UPDATE email_outbox SET status = 'processing', updated_at = ? WHERE id = ? AND status = 'pending'")
+        .bind(now, row.id)
+        .run();
+    }
+    return results;
+  }
+
+  async finishOutboxAttempt(
+    id: string,
+    result: {
+      status: OutboxRow["status"];
+      provider?: string;
+      providerMessageId?: string;
+      error?: string;
+      nextAttemptAt?: string | null;
+    }
+  ): Promise<void> {
+    const now = new Date().toISOString();
+    await this.db
+      .prepare(
+        `UPDATE email_outbox SET
+           status = ?, attempt_count = attempt_count + 1, last_attempt_at = ?,
+           sent_at = CASE WHEN ? = 'sent' THEN ? ELSE sent_at END,
+           body_html = CASE WHEN ? = 'sent' THEN NULL ELSE body_html END,
+           body_text = CASE WHEN ? = 'sent' THEN NULL ELSE body_text END,
+           provider = COALESCE(?, provider),
+           provider_message_id = COALESCE(?, provider_message_id),
+           last_error = ?, next_attempt_at = ?, updated_at = ?
+         WHERE id = ?`
+      )
+      .bind(
+        result.status,
+        now,
+        result.status,
+        now,
+        result.status,
+        result.status,
+        result.provider ?? null,
+        result.providerMessageId ?? null,
+        result.error ?? null,
+        result.nextAttemptAt ?? null,
+        now,
+        id
+      )
+      .run();
+  }
+
+  async outboxSummary() {
+    const row = await this.db
+      .prepare(
+        `SELECT
+           SUM(CASE WHEN status IN ('pending','processing') THEN 1 ELSE 0 END) AS pending,
+           SUM(CASE WHEN status = 'sent' THEN 1 ELSE 0 END) AS sent,
+           SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed
+         FROM email_outbox`
+      )
+      .first<{ pending: number | null; sent: number | null; failed: number | null }>();
+    return {
+      pending: row?.pending ?? 0,
+      sent: row?.sent ?? 0,
+      failed: row?.failed ?? 0,
+    };
+  }
+
+  async isEmailSuppressed(email: string): Promise<boolean> {
+    const row = await this.db
+      .prepare("SELECT email FROM email_suppressions WHERE email = ?")
+      .bind(email.toLowerCase())
+      .first();
+    return !!row;
+  }
+
+  async addEmailSuppression(email: string, reason: string): Promise<void> {
+    await this.db
+      .prepare(
+        "INSERT INTO email_suppressions (email, reason, created_at) VALUES (?, ?, ?) ON CONFLICT(email) DO NOTHING"
+      )
+      .bind(email.toLowerCase(), reason, new Date().toISOString())
+      .run();
+  }
+
+  async createPrivacyRequest(r: {
+    email: string;
+    request_type: PrivacyRequest["request_type"];
+    details: string | null;
+  }): Promise<PrivacyRequest> {
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    await this.db
+      .prepare(
+        "INSERT INTO privacy_requests (id, email, request_type, details, status, created_at) VALUES (?, ?, ?, ?, 'pending_verification', ?)"
+      )
+      .bind(id, r.email, r.request_type, r.details, now)
+      .run();
+    return {
+      id,
+      email: r.email,
+      request_type: r.request_type,
+      details: r.details,
+      status: "pending_verification",
+      verified_at: null,
+      completed_at: null,
+      note: null,
+      created_at: now,
+    };
+  }
+
+  async getPrivacyRequest(id: string): Promise<PrivacyRequest | null> {
+    const row = await this.db
+      .prepare("SELECT * FROM privacy_requests WHERE id = ?")
+      .bind(id)
+      .first<PrivacyRequest>();
+    return row ?? null;
+  }
+
+  async updatePrivacyRequest(
+    id: string,
+    patch: Partial<Pick<PrivacyRequest, "status" | "verified_at" | "completed_at" | "note">>
+  ): Promise<boolean> {
+    const keys = Object.keys(patch);
+    if (!keys.length) return false;
+    const sets = keys.map((k) => `${k} = ?`).join(", ");
+    const res = await this.db
+      .prepare(`UPDATE privacy_requests SET ${sets} WHERE id = ?`)
+      .bind(...keys.map((k) => (patch as Record<string, unknown>)[k]), id)
+      .run();
+    return !!res.meta.changes;
+  }
+
+  async listPrivacyRequests(): Promise<PrivacyRequest[]> {
+    const { results } = await this.db
+      .prepare("SELECT * FROM privacy_requests ORDER BY created_at DESC LIMIT 200")
+      .all<PrivacyRequest>();
+    return results;
+  }
+
+  async createEntryReport(r: {
+    supporter_id: string;
+    reason: string;
+    details: string | null;
+    reporter_hash: string | null;
+  }): Promise<{ created: boolean }> {
+    if (r.reporter_hash) {
+      const dup = await this.db
+        .prepare(
+          "SELECT id FROM entry_reports WHERE supporter_id = ? AND reporter_hash = ? AND status = 'open'"
+        )
+        .bind(r.supporter_id, r.reporter_hash)
+        .first();
+      if (dup) return { created: false };
+    }
+    await this.db
+      .prepare(
+        "INSERT INTO entry_reports (id, supporter_id, reason, details, reporter_hash, status, created_at) VALUES (?, ?, ?, ?, ?, 'open', ?)"
+      )
+      .bind(
+        crypto.randomUUID(),
+        r.supporter_id,
+        r.reason,
+        r.details,
+        r.reporter_hash,
+        new Date().toISOString()
+      )
+      .run();
+    return { created: true };
+  }
+
+  async listEntryReports(status?: EntryReport["status"]): Promise<EntryReport[]> {
+    const { results } = status
+      ? await this.db
+          .prepare("SELECT * FROM entry_reports WHERE status = ? ORDER BY created_at DESC LIMIT 200")
+          .bind(status)
+          .all<EntryReport>()
+      : await this.db
+          .prepare("SELECT * FROM entry_reports ORDER BY created_at DESC LIMIT 200")
+          .all<EntryReport>();
+    return results;
+  }
+
+  async updateEntryReport(id: string, status: EntryReport["status"]): Promise<boolean> {
+    const res = await this.db
+      .prepare("UPDATE entry_reports SET status = ? WHERE id = ?")
+      .bind(status, id)
+      .run();
+    return !!res.meta.changes;
+  }
+
+  async retentionCleanup() {
+    const now = Date.now();
+    const iso = (ms: number) => new Date(now - ms).toISOString();
+    // 1. Unverified signups past retention — hard delete (they never joined).
+    const removed = await this.db
+      .prepare(
+        "DELETE FROM supporters WHERE status = 'pending' AND email_verified_at IS NULL AND created_at < ?"
+      )
+      .bind(iso(RETENTION.unverifiedSignupMs))
+      .run();
+    // 2. Old used/expired token rows.
+    const tokens = await this.db
+      .prepare(
+        "DELETE FROM security_tokens WHERE (used_at IS NOT NULL OR expires_at < ?) AND created_at < ?"
+      )
+      .bind(new Date(now).toISOString(), iso(RETENTION.tokenRowMs))
+      .run();
+    // 3. Redact bodies of old sent/failed emails; purge very old rows.
+    const redacted = await this.db
+      .prepare(
+        `UPDATE email_outbox SET body_html = NULL, body_text = NULL, updated_at = ?
+         WHERE status IN ('sent','failed','suppressed','cancelled')
+           AND (body_html IS NOT NULL OR body_text IS NOT NULL)
+           AND created_at < ?`
+      )
+      .bind(new Date(now).toISOString(), iso(RETENTION.outboxBodyMs))
+      .run();
+    await this.db
+      .prepare(
+        "DELETE FROM email_outbox WHERE status IN ('sent','failed','suppressed','cancelled') AND created_at < ?"
+      )
+      .bind(iso(RETENTION.outboxRowMs))
+      .run();
+    await this.db
+      .prepare("DELETE FROM entry_reports WHERE status != 'open' AND created_at < ?")
+      .bind(iso(RETENTION.reportRowMs))
+      .run();
+    await this.db
+      .prepare(
+        "DELETE FROM privacy_requests WHERE status IN ('completed','rejected') AND created_at < ?"
+      )
+      .bind(iso(RETENTION.privacyRequestMs))
+      .run();
+    return {
+      removedSupporters: removed.meta.changes ?? 0,
+      removedTokens: tokens.meta.changes ?? 0,
+      redactedEmails: redacted.meta.changes ?? 0,
     };
   }
 }
