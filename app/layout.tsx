@@ -80,6 +80,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${cinzel.variable} ${inter.variable} antialiased`}>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[200] focus:bg-navy focus:text-gold-2 focus:border focus:border-gold focus:rounded focus:px-4 focus:py-2 focus:text-sm"
+        >
+          Skip to main content
+        </a>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}

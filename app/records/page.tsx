@@ -33,7 +33,7 @@ export default async function RecordsPage() {
     <EraProvider>
       <DisclaimerBar text={legal.top_disclaimer} />
       <Nav />
-      <main>
+      <main id="main-content">
         <PageHero
           kicker="The Numbers Tell the Story"
           title="The Record Wall"

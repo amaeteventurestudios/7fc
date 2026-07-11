@@ -57,7 +57,7 @@ export default async function KitPage() {
       />
       <DisclaimerBar text={legal.top_disclaimer} />
       <Nav />
-      <main>
+      <main id="main-content">
         <KitCollection
           products={products}
           disclosure={legal.affiliate_disclosure}

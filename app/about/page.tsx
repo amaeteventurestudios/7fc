@@ -31,7 +31,7 @@ export default async function AboutPage() {
     <>
       <DisclaimerBar text={legal.top_disclaimer} />
       <Nav />
-      <main>
+      <main id="main-content">
         <PageHero
           kicker="For the Fans. For the Legacy."
           title="About 7FC"

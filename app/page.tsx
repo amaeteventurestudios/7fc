@@ -48,7 +48,7 @@ export default async function HomePage() {
     <EraProvider>
       <DisclaimerBar text={legal.top_disclaimer} />
       <Nav />
-      <main>
+      <main id="main-content">
         <Hero />
         <StatsStrip />
         <BuiltDifferent />

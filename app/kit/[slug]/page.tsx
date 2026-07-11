@@ -101,7 +101,7 @@ export default async function KitProductRoute({
       />
       <DisclaimerBar text={legal.top_disclaimer} />
       <Nav />
-      <main>
+      <main id="main-content">
         <KitProductPage product={product} related={related} />
       </main>
       <SiteFooter legal={legal} />

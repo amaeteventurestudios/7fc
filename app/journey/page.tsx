@@ -33,7 +33,7 @@ export default async function JourneyPage() {
     <EraProvider>
       <DisclaimerBar text={legal.top_disclaimer} />
       <Nav />
-      <main>
+      <main id="main-content">
         <PageHero
           kicker="From Madeira to the World"
           title="The Journey"

@@ -33,7 +33,7 @@ export default async function MomentsPage() {
     <EraProvider>
       <DisclaimerBar text={legal.top_disclaimer} />
       <Nav />
-      <main>
+      <main id="main-content">
         <PageHero
           kicker="Nights That Made History"
           title="Iconic Moments"

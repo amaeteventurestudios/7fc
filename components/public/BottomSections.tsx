@@ -5,6 +5,7 @@ import { Reveal, SectionTitle, CONTAINER } from "./ui";
 import { productImage, productSlug } from "@/lib/kit";
 import { PRIMARY_NAV } from "@/lib/site";
 import { KitImage } from "./KitProductPage";
+import CookieSettingsButton from "./CookieSettingsButton";
 import { EditorialImageBadge } from "./KitDisclosure";
 import type { AffiliateProduct, LegalDisclaimers } from "@/lib/types";
 
@@ -121,11 +122,37 @@ export function SiteFooter({ legal }: { legal: LegalDisclaimers }) {
       >
         𝕏
       </a>
-      <p className="text-[10px] text-gray-600 mt-4 max-w-3xl mx-auto leading-relaxed">
+      <nav
+        aria-label="Legal and policies"
+        className="mt-6 flex flex-wrap justify-center items-center gap-x-4 gap-y-2 text-[10px] tracking-[0.15em] uppercase text-gray-500"
+      >
+        {[
+          ["Contact", "/contact"],
+          ["Terms of Use", "/terms"],
+          ["Privacy Policy", "/privacy"],
+          ["Cookie Policy", "/cookies"],
+          ["Affiliate Disclosure", "/affiliate-disclosure"],
+          ["Fan & IP Disclaimer", "/disclaimer"],
+          ["Community Guidelines", "/community-guidelines"],
+          ["Privacy Request", "/privacy-request"],
+          ["Accessibility", "/accessibility"],
+          ["Security", "/security"],
+        ].map(([label, href]) => (
+          <Link key={href} href={href} className="hover:text-gold-2 transition-colors">
+            {label}
+          </Link>
+        ))}
+        <CookieSettingsButton
+          className="hover:text-gold-2 transition-colors uppercase tracking-[0.15em] text-[10px]"
+          label="Cookie Settings"
+        />
+      </nav>
+      <p className="text-[10px] text-gray-600 mt-5 max-w-3xl mx-auto leading-relaxed">
         {legal.footer_disclaimer}
       </p>
       <p className="text-[10px] text-gray-600 mt-3">
-        © {new Date().getFullYear()} SevenFC.net · All rights reserved.
+        © {new Date().getFullYear()} 7FC. All rights reserved. Independent
+        unofficial fan community.
       </p>
     </footer>
   );
