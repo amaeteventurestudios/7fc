@@ -76,11 +76,11 @@ export default function CookieConsentModal({
   useEffect(() => {
     if (!open) return;
     openerRef.current = document.activeElement;
-    const prefs = readPrefs();
-    setAnalytics(prefs?.analytics ?? false);
-    setSaved(false);
-    // Focus the dialog on open.
+    // Load saved prefs + focus the dialog after paint.
     const t = setTimeout(() => {
+      const prefs = readPrefs();
+      setAnalytics(prefs?.analytics ?? false);
+      setSaved(false);
       dialogRef.current
         ?.querySelector<HTMLElement>("button, [href], input")
         ?.focus();
