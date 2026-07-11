@@ -107,6 +107,7 @@ export async function POST(req: NextRequest) {
               email_verified_at: supporter.email_verified_at,
               display_consent: supporter.display_consent,
               marketing_consent: supporter.marketing_consent,
+              consent_source: supporter.consent_source,
             },
           }
         : { exported_at: now, source: "7FC", data: null, note: "No supporter record exists for this email address." };

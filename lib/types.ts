@@ -37,6 +37,10 @@ export interface Supporter {
   published_at: string | null;
   deleted_at: string | null;
   moderation_note: string | null;
+  /** How the consent evidence was captured: affirmative signup form,
+   *  legacy_migration (pre-trust-layer record; no manufactured consent
+   *  events), or reconfirmed via self-service. */
+  consent_source: string | null;
 }
 
 /** Defaults for trust-layer fields when reading legacy rows. */
@@ -56,6 +60,7 @@ export const SUPPORTER_TRUST_DEFAULTS = {
   published_at: null,
   deleted_at: null,
   moderation_note: null,
+  consent_source: null,
 } satisfies Partial<Supporter>;
 
 export interface SecurityToken {

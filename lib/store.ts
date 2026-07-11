@@ -132,11 +132,9 @@ function seedDb(): Database {
     status: "approved",
     created_at: now,
     ...SUPPORTER_TRUST_DEFAULTS,
-    email_verified_at: now,
     display_consent: true,
-    display_consent_at: now,
-    age_attested_at: now,
     published_at: now,
+    consent_source: "legacy_migration",
   }));
   return {
     admin_users: [admin],
@@ -150,6 +148,8 @@ function seedDb(): Database {
 }
 
 let writeQueue: Promise<void> = Promise.resolve();
+/** Serializes whole read-modify-write transactions (see mutate). */
+let mutateQueue: Promise<unknown> = Promise.resolve();
 
 export async function readDb(): Promise<Database> {
   try {
@@ -163,13 +163,14 @@ export async function readDb(): Promise<Database> {
     // Normalize supporters written before the trust-layer fields existed:
     // legacy rows are treated as verified + display-consented at signup time.
     db.supporters = db.supporters.map((s) => {
+      // Legacy rows keep their public visibility (they joined a public wall)
+      // but carry NO manufactured consent events or timestamps — they are
+      // tagged consent_source=legacy_migration instead.
       const legacyDefaults = {
         ...SUPPORTER_TRUST_DEFAULTS,
-        email_verified_at: s.created_at,
         display_consent: true,
-        display_consent_at: s.created_at,
-        age_attested_at: s.created_at,
         published_at: s.status === "approved" ? s.created_at : null,
+        consent_source: "legacy_migration",
       };
       return { ...legacyDefaults, ...s };
     });
@@ -199,10 +200,17 @@ export async function writeDb(db: Database): Promise<void> {
 export async function mutate<T>(
   fn: (db: Database) => T | Promise<T>
 ): Promise<T> {
-  const db = await readDb();
-  const result = await fn(db);
-  await writeDb(db);
-  return result;
+  // The entire read-modify-write runs on a queue so concurrent mutations
+  // (e.g. two outbox processors claiming rows) never operate on the same
+  // stale snapshot. Mirrors the atomicity of the D1 conditional UPDATEs.
+  const run = mutateQueue.then(async () => {
+    const db = await readDb();
+    const result = await fn(db);
+    await writeDb(db);
+    return result;
+  });
+  mutateQueue = run.catch(() => {});
+  return run;
 }
 
 export function logActivity(

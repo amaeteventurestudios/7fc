@@ -19,7 +19,7 @@ export const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || 
  * configured (the server skips validation in that case too). Sets the
  * token into a hidden input named `turnstile_token` inside the parent form.
  */
-export default function TurnstileWidget() {
+export default function TurnstileWidget({ action }: { action?: string }) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,6 +32,7 @@ export default function TurnstileWidget() {
       widgetId = window.turnstile.render(ref.current, {
         sitekey: TURNSTILE_SITE_KEY,
         theme: "dark",
+        action,
         "response-field-name": "turnstile_token",
       });
     };
@@ -59,7 +60,7 @@ export default function TurnstileWidget() {
       cancelled = true;
       if (widgetId && window.turnstile) window.turnstile.remove(widgetId);
     };
-  }, []);
+  }, [action]);
 
   if (!TURNSTILE_SITE_KEY) return null;
   return <div ref={ref} className="flex justify-center" aria-label="Human verification" />;

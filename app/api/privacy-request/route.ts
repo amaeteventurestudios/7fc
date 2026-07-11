@@ -6,7 +6,7 @@ import { generateToken, hashToken, normalizeEmail } from "@/lib/tokens";
 import { RETENTION } from "@/lib/policy";
 import { SITE_URL } from "@/lib/site";
 import type { PrivacyRequestType } from "@/lib/types";
-import { enqueueEmail, deliverSoon } from "@/lib/email/outbox";
+import { enqueueEmail, deliverSoon, emailEnabled } from "@/lib/email/outbox";
 import {
   privacyRequestVerification,
   REPLY_TO_SUPPORT,
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
   }
   if (typeof body.website === "string" && body.website.trim() !== "")
     return NextResponse.json({ error: "Submission rejected." }, { status: 400 });
-  const turnstile = await verifyTurnstile(body.turnstile_token, ip);
+  const turnstile = await verifyTurnstile(body.turnstile_token, ip, "privacy_request");
   if (!turnstile.ok)
     return NextResponse.json({ error: "Human verification failed." }, { status: 400 });
 
@@ -53,6 +53,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "A valid email is required." }, { status: 400 });
   if (!TYPES.includes(requestType))
     return NextResponse.json({ error: "Please choose a request type." }, { status: 400 });
+
+  if (!emailEnabled()) {
+    // The flow depends on a verification email; refuse before creating an
+    // unusable request record or token.
+    return NextResponse.json(
+      {
+        error:
+          "Automated privacy requests are temporarily unavailable. Please email privacy@sevenfc.net directly — requests are honored either way.",
+      },
+      { status: 503 }
+    );
+  }
 
   const store = await getStore();
   const request = await store.createPrivacyRequest({

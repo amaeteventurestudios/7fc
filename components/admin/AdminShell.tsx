@@ -10,6 +10,7 @@ const NAV = [
   { href: "/admin/settings", label: "Wall Settings" },
   { href: "/admin/products", label: "Affiliate Products" },
   { href: "/admin/legal", label: "Legal" },
+  { href: "/admin/readiness", label: "Readiness" },
   { href: "/admin/settings/security", label: "Security" },
 ];
 

@@ -111,6 +111,8 @@ interface SendResult {
   provider: string;
   providerMessageId?: string;
   permanent?: boolean;
+  /** Provider not configured: defer without consuming a retry attempt. */
+  deferred?: boolean;
   error?: string;
 }
 
@@ -154,10 +156,17 @@ async function sendViaProvider(msg: OutboxMessage): Promise<SendResult> {
     console.log(`[email dev-log] to=${msg.recipient} type=${msg.notification_type} subject="${msg.subject}"`);
     return { ok: true, provider: "dev-log", providerMessageId: `dev-${msg.id}` };
   }
-  return { ok: false, provider: "none", error: "No email provider configured (RESEND_API_KEY missing)" };
+  return {
+    ok: false,
+    provider: "none",
+    deferred: true,
+    error: "No email provider configured",
+  };
 }
 
-/** Attempt delivery of due pending messages. Returns counts for reporting. */
+/** Attempt delivery of due pending messages. Returns counts for reporting.
+ *  Safe under concurrent invocation: rows are claimed atomically and stale
+ *  `processing` rows are recovered by the store after a timeout. */
 export async function deliverDue(
   store: Store,
   limit = 10
@@ -182,7 +191,20 @@ export async function deliverDue(
         provider: result.provider,
         providerMessageId: result.providerMessageId,
       });
+      await store.setOpsMeta("last_email_sent_at", new Date().toISOString());
       sent++;
+    } else if (result.deferred) {
+      // Provider unconfigured: park the message without consuming an
+      // attempt so durable payloads (e.g. contact messages) survive until
+      // a provider exists.
+      await store.finishOutboxAttempt(msg.id, {
+        status: "pending",
+        provider: result.provider,
+        error: result.error,
+        nextAttemptAt: new Date(Date.now() + 60 * 60_000).toISOString(),
+        countAttempt: false,
+      });
+      skipped++;
     } else {
       const attempts = msg.attempt_count + 1;
       const exhausted = result.permanent || attempts >= OUTBOX_MAX_ATTEMPTS;

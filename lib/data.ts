@@ -24,6 +24,8 @@ import type {
 } from "./types";
 import type { D1Database } from "./d1-store";
 
+export type ConsentSource = "signup_form" | "legacy_migration" | "reconfirmed";
+
 export interface SupporterInput {
   first_name: string;
   last_name: string | null;
@@ -143,6 +145,12 @@ export interface Store {
         | "status"
         | "published_at"
         | "moderation_note"
+        | "consent_source"
+        | "terms_version"
+        | "terms_accepted_at"
+        | "privacy_version"
+        | "privacy_ack_at"
+        | "email_verified_at"
       >
     >
   ): Promise<boolean>;
@@ -192,9 +200,29 @@ export interface Store {
       providerMessageId?: string;
       error?: string;
       nextAttemptAt?: string | null;
+      /** false = park without consuming a retry attempt (provider unconfigured). */
+      countAttempt?: boolean;
     }
   ): Promise<void>;
   outboxSummary(): Promise<{ pending: number; sent: number; failed: number }>;
+  /** Single outbox row by idempotency key (admin diagnostics only). */
+  getOutboxByEventKey(eventKey: string): Promise<OutboxRow | null>;
+
+  /** Small operational key/value metadata (last cron run, last delivery). */
+  getOpsMeta(key: string): Promise<string | null>;
+  setOpsMeta(key: string, value: string): Promise<void>;
+
+  /** Aggregate counts for the admin readiness view (no personal data). */
+  readinessCounts(): Promise<{
+    outbox_pending: number;
+    outbox_failed: number;
+    outbox_sent: number;
+    suppressed: number;
+    pending_moderation: number;
+    open_reports: number;
+    pending_privacy_requests: number;
+    legacy_consent_supporters: number;
+  }>;
 
   isEmailSuppressed(email: string): Promise<boolean>;
   addEmailSuppression(email: string, reason: string): Promise<void>;

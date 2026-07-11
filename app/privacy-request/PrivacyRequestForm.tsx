@@ -72,7 +72,7 @@ export default function PrivacyRequestForm() {
       </div>
       {/* Honeypot */}
       <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
-      <TurnstileWidget />
+      <TurnstileWidget action="privacy_request" />
       {error && <p className="text-center text-sm text-red-400" role="alert">{error}</p>}
       <div className="text-center pt-2">
         <button type="submit" disabled={busy} className="cta-glow bg-crimson text-white font-bold tracking-widest uppercase text-sm px-10 py-4 rounded disabled:opacity-50 w-full md:w-auto">

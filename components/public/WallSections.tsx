@@ -221,13 +221,20 @@ interface SubmitResult {
   needs_verification?: boolean;
 }
 
-export function GlobalWallForm({ settings }: { settings: GlobalWallSettings }) {
+export function GlobalWallForm({
+  settings,
+  signupAvailable = true,
+}: {
+  settings: GlobalWallSettings;
+  signupAvailable?: boolean;
+}) {
   const { selectedEra, setSelectedEra } = useEra();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SubmitResult | null>(null);
 
   const closed = !settings.enable_submissions || settings.emergency_lock;
+  const paused = !closed && !signupAvailable;
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -286,11 +293,12 @@ export function GlobalWallForm({ settings }: { settings: GlobalWallSettings }) {
                 View Global 7 Wall
               </Link>
             </div>
-          ) : closed ? (
-            <div className="glass-card max-w-2xl mx-auto p-8 text-center">
+          ) : closed || paused ? (
+            <div className="glass-card max-w-2xl mx-auto p-8 text-center" role="status">
               <p className="text-sm text-gray-300">
-                The Global 7 Wall is temporarily closed for new entries. Check
-                back soon.
+                {paused
+                  ? "New signups are temporarily paused for maintenance. The Wall is still open to explore — check back soon to raise your 7."
+                  : "The Global 7 Wall is temporarily closed for new entries. Check back soon."}
               </p>
             </div>
           ) : (
@@ -427,7 +435,7 @@ export function GlobalWallForm({ settings }: { settings: GlobalWallSettings }) {
                     <span>I would like to receive occasional 7FC news and updates. (Optional)</span>
                   </label>
                 </div>
-                <TurnstileWidget />
+                <TurnstileWidget action="wall_signup" />
                 {/* Honeypot — humans never see or fill this */}
                 <input
                   type="text"

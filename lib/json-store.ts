@@ -84,6 +84,7 @@ export class JsonStore implements Store {
         marketing_consent_at: c?.marketing_consent ? now : null,
         age_attested_at: c?.age_attested ? now : null,
         published_at: status === "approved" ? now : null,
+        consent_source: c ? "signup_form" : "legacy_migration",
       };
       db.supporters.push(supporter);
       logActivity(
@@ -492,6 +493,16 @@ export class JsonStore implements Store {
   async claimDueOutbox(limit: number): Promise<OutboxRow[]> {
     return mutate((db) => {
       const now = new Date().toISOString();
+      // Recover rows stuck in `processing` after 10 minutes (crashed run).
+      const stale = new Date(Date.now() - 10 * 60_000).toISOString();
+      for (const m of db.email_outbox ?? []) {
+        if (m.status === "processing" && m.updated_at < stale) {
+          m.status = "pending";
+          m.updated_at = now;
+        }
+      }
+      // mutate() serializes writers, so pending->processing here is an
+      // atomic claim: a second processor never sees these rows as pending.
       const due = (db.email_outbox ?? [])
         .filter(
           (m) =>
@@ -515,6 +526,7 @@ export class JsonStore implements Store {
       providerMessageId?: string;
       error?: string;
       nextAttemptAt?: string | null;
+      countAttempt?: boolean;
     }
   ): Promise<void> {
     await mutate((db) => {
@@ -522,7 +534,7 @@ export class JsonStore implements Store {
       if (!m) return;
       const now = new Date().toISOString();
       m.status = result.status;
-      m.attempt_count += 1;
+      if (result.countAttempt !== false) m.attempt_count += 1;
       m.last_attempt_at = now;
       if (result.status === "sent") {
         m.sent_at = now;
@@ -546,6 +558,11 @@ export class JsonStore implements Store {
       sent: list.filter((m) => m.status === "sent").length,
       failed: list.filter((m) => m.status === "failed").length,
     };
+  }
+
+  async getOutboxByEventKey(eventKey: string): Promise<OutboxRow | null> {
+    const db = await readDb();
+    return (db.email_outbox ?? []).find((m) => m.event_key === eventKey) ?? null;
   }
 
   async isEmailSuppressed(email: string): Promise<boolean> {
@@ -661,6 +678,43 @@ export class JsonStore implements Store {
       r.status = status;
       return true;
     });
+  }
+
+  async getOpsMeta(key: string): Promise<string | null> {
+    const db = await readDb();
+    return (
+      (db as unknown as { ops_meta?: Record<string, string> }).ops_meta?.[key] ??
+      null
+    );
+  }
+
+  async setOpsMeta(key: string, value: string): Promise<void> {
+    await mutate((db) => {
+      const d = db as unknown as { ops_meta?: Record<string, string> };
+      (d.ops_meta ??= {})[key] = value;
+    });
+  }
+
+  async readinessCounts() {
+    const db = await readDb();
+    const outbox = await this.outboxSummary();
+    return {
+      outbox_pending: outbox.pending,
+      outbox_failed: outbox.failed,
+      outbox_sent: outbox.sent,
+      suppressed: (db.email_suppressions ?? []).length,
+      pending_moderation: db.supporters.filter(
+        (s) => s.status === "pending" && !!s.email_verified_at
+      ).length,
+      open_reports: (db.entry_reports ?? []).filter((r) => r.status === "open")
+        .length,
+      pending_privacy_requests: (db.privacy_requests ?? []).filter(
+        (r) => r.status === "pending_verification" || r.status === "verified"
+      ).length,
+      legacy_consent_supporters: db.supporters.filter(
+        (s) => s.consent_source === "legacy_migration" && s.status !== "deleted"
+      ).length,
+    };
   }
 
   async retentionCleanup() {

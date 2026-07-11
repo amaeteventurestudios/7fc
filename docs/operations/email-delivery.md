@@ -6,18 +6,25 @@ Internal document. Last updated: 2026-07-11.
 
 - **Outbox**: every transactional message is written to the `email_outbox`
   D1 table with a unique `event_key` (idempotent — repeats can never create
-  duplicates), then delivery is attempted immediately via
-  `ctx.waitUntil` and retried with backoff (1, 5, 30, 120, 720 minutes; max
-  6 attempts) whenever `POST /api/admin/outbox` runs (admin-authenticated;
-  the admin should trigger it when the dashboard shows pending items).
-  There is **no unauthenticated retry endpoint** and no cron trigger in the
-  current OpenNext worker (documented limitation; the opportunistic
-  send-on-enqueue covers the normal path).
+  duplicates). Delivery is attempted immediately via `ctx.waitUntil`, and a
+  **Cloudflare cron trigger runs every 5 minutes** (wrangler.toml
+  `[triggers]`; the scheduled handler in worker/index.js self-invokes
+  POST /api/cron/outbox) to retry with backoff (1, 5, 30, 120, 720 minutes;
+  max 6 attempts → permanent `failed`). Row claims are atomic
+  (per-row conditional UPDATE) with stale-`processing` recovery after 10
+  minutes, so overlapping runs can never double-send. Retention cleanup runs
+  in the same cron. `POST /api/admin/outbox` remains as a protected manual
+  retry tool. When no provider is configured, due rows are parked (attempt
+  counter untouched) so contact payloads survive until a provider exists —
+  and signup/manage/privacy flows refuse up-front with a temporary-service
+  message instead of creating dead-end records.
 - **Provider**: Resend HTTPS API when `RESEND_API_KEY` is set. Local dev
   without a key uses a `dev-log` provider (logs metadata, marks sent).
-  **Production without a key**: `emailEnabled()` returns false and the wall
-  signup falls back to the legacy no-verification flow — the UI never claims
-  an email was sent when none can be.
+  **Production without a key**: `emailEnabled()` returns false; signups,
+  resend-verification, management links, and automated privacy requests are
+  refused up-front with an honest temporary-service message (no records or
+  tokens are created), and the wall form shows a "signups temporarily
+  paused" card. Contact submissions still queue durably.
 - Sender: `7FC Notifications <notifications@sevenfc.net>`; Reply-To
   `support@sevenfc.net` (supporter mail) or `contact@sevenfc.net`.
   Owner alerts go to `admin@sevenfc.net`; privacy alerts to

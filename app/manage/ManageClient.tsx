@@ -63,7 +63,7 @@ function RequestLinkForm() {
         <label htmlFor="m-email" className={labelCls}>Email on your entry *</label>
         <input id="m-email" name="email" type="email" required maxLength={200} className={inputCls} placeholder="you@example.com" autoComplete="email" />
       </div>
-      <TurnstileWidget />
+      <TurnstileWidget action="manage_link" />
       {error && <p className="text-sm text-red-400 text-center" role="alert">{error}</p>}
       <div className="text-center">
         <button type="submit" disabled={busy} className="cta-glow bg-crimson text-white font-bold tracking-widest uppercase text-sm px-8 py-3.5 rounded disabled:opacity-50">

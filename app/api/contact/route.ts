@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   if (typeof body.website === "string" && body.website.trim() !== "") {
     return NextResponse.json({ error: "Submission rejected." }, { status: 400 });
   }
-  const turnstile = await verifyTurnstile(body.turnstile_token, ip);
+  const turnstile = await verifyTurnstile(body.turnstile_token, ip, "contact");
   if (!turnstile.ok)
     return NextResponse.json(
       { error: "Human verification failed. Please try again." },

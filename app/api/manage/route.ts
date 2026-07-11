@@ -8,7 +8,7 @@ import { RETENTION } from "@/lib/policy";
 import { SITE_URL } from "@/lib/site";
 import { ERAS } from "@/lib/types";
 import type { Supporter } from "@/lib/types";
-import { enqueueEmail, deliverSoon } from "@/lib/email/outbox";
+import { enqueueEmail, deliverSoon, emailEnabled } from "@/lib/email/outbox";
 import { managementLinkEmail, REPLY_TO_SUPPORT } from "@/lib/email/templates";
 
 /** Private view of the supporter's own record (never exposes internals). */
@@ -27,6 +27,7 @@ function selfView(s: Supporter) {
     marketing_consent: s.marketing_consent,
     created_at: s.created_at,
     email_verified_at: s.email_verified_at,
+    consent_source: s.consent_source,
   };
 }
 
@@ -60,6 +61,7 @@ function exportView(s: Supporter) {
       marketing_withdrawn_at: s.marketing_withdrawn_at,
       age_attested_at: s.age_attested_at,
       published_at: s.published_at,
+      consent_source: s.consent_source,
     },
   };
 }
@@ -109,9 +111,16 @@ export async function POST(req: NextRequest) {
   const now = new Date().toISOString();
 
   if (action === "request_link") {
+    if (!emailEnabled()) {
+      // Refuse before any token is minted; no dead-end links.
+      return NextResponse.json(
+        { error: "Email delivery is temporarily unavailable, so management links cannot be sent right now. Please try again soon or email support@sevenfc.net." },
+        { status: 503 }
+      );
+    }
     if (!rateLimit(`manage-link:${ip}`, 3, 10 * 60_000))
       return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });
-    const turnstile = await verifyTurnstile(body.turnstile_token, ip);
+    const turnstile = await verifyTurnstile(body.turnstile_token, ip, "manage_link");
     if (!turnstile.ok)
       return NextResponse.json({ error: "Human verification failed." }, { status: 400 });
     const email = normalizeEmail(String(body.email ?? ""));
@@ -123,8 +132,9 @@ export async function POST(req: NextRequest) {
     if (!email || email.length > 200 || !rateLimit(`manage-link-email:${email}`, 2, 10 * 60_000))
       return NextResponse.json(neutral);
     const supporter = await store.findSupporterByEmail(email);
-    // Sensitive actions require a verified email address.
-    if (supporter && supporter.email_verified_at) {
+    // Receiving and using the emailed link IS the email-control proof, so
+    // legacy (pre-verification-era) supporters can also manage their entry.
+    if (supporter) {
       await store.invalidateSecurityTokens("manage", supporter.id);
       const raw = generateToken();
       await store.createSecurityToken({
@@ -209,7 +219,14 @@ export async function POST(req: NextRequest) {
       await store.updateSupporterFields(supporter.id, {
         display_consent: grant,
         ...(grant
-          ? { display_consent_at: now }
+          ? {
+              display_consent_at: now,
+              // Affirmative action via the emailed link: legacy records
+              // become 'reconfirmed' with a real consent timestamp.
+              ...(supporter.consent_source === "legacy_migration"
+                ? { consent_source: "reconfirmed" }
+                : {}),
+            }
           : { display_consent_withdrawn_at: now }),
       });
       const updated = await store.getSupporterById(supporter.id);

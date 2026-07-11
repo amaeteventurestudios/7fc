@@ -4,6 +4,7 @@ import { rateLimit, clientIp } from "@/lib/request";
 import { normalizeEmail } from "@/lib/tokens";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { queueVerificationEmail } from "@/lib/wall-lifecycle";
+import { emailEnabled } from "@/lib/email/outbox";
 
 /**
  * POST { email, turnstile_token } — controlled resend of the verification
@@ -21,7 +22,13 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
-  const turnstile = await verifyTurnstile(body.turnstile_token, ip);
+  if (!emailEnabled()) {
+    return NextResponse.json(
+      { error: "Email delivery is temporarily unavailable. Please try again soon." },
+      { status: 503 }
+    );
+  }
+  const turnstile = await verifyTurnstile(body.turnstile_token, ip, "wall_resend");
   if (!turnstile.ok)
     return NextResponse.json({ error: "Human verification failed." }, { status: 400 });
 

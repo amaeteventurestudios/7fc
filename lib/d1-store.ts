@@ -231,9 +231,9 @@ export class D1Store implements Store {
             country_code, favorite_era, message, show_full_name, status, created_at,
             email_verified_at, terms_version, terms_accepted_at, privacy_version,
             privacy_ack_at, display_consent, display_consent_at, marketing_consent,
-            marketing_consent_at, age_attested_at, published_at)
+            marketing_consent_at, age_attested_at, published_at, consent_source)
          SELECT ?, COALESCE(MAX(supporter_number), 6) + 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
          FROM supporters`
       )
       .bind(
@@ -258,7 +258,8 @@ export class D1Store implements Store {
         c?.marketing_consent ? 1 : 0,
         c?.marketing_consent ? now : null,
         c?.age_attested ? now : null,
-        status === "approved" ? now : null
+        status === "approved" ? now : null,
+        c ? "signup_form" : "legacy_migration"
       )
       .run();
     const row = await this.db
@@ -714,6 +715,12 @@ export class D1Store implements Store {
       "status",
       "published_at",
       "moderation_note",
+      "terms_version",
+      "terms_accepted_at",
+      "privacy_version",
+      "privacy_ack_at",
+      "consent_source",
+      "email_verified_at",
     ]);
     const keys = Object.keys(patch).filter((k) => allowed.has(k));
     if (keys.length === 0) return false;
@@ -861,6 +868,14 @@ export class D1Store implements Store {
 
   async claimDueOutbox(limit: number): Promise<OutboxRow[]> {
     const now = new Date().toISOString();
+    // Recover rows stuck in `processing` (crashed worker) after 10 minutes.
+    const stale = new Date(Date.now() - 10 * 60_000).toISOString();
+    await this.db
+      .prepare(
+        "UPDATE email_outbox SET status = 'pending', updated_at = ? WHERE status = 'processing' AND updated_at < ?"
+      )
+      .bind(now, stale)
+      .run();
     const { results } = await this.db
       .prepare(
         `SELECT * FROM email_outbox
@@ -869,13 +884,19 @@ export class D1Store implements Store {
       )
       .bind(now, limit)
       .all<OutboxRow>();
+    // Atomic per-row claim: a concurrent processor loses the UPDATE race and
+    // skips the row, so overlapping executions can never double-send.
+    const claimed: OutboxRow[] = [];
     for (const row of results) {
-      await this.db
-        .prepare("UPDATE email_outbox SET status = 'processing', updated_at = ? WHERE id = ? AND status = 'pending'")
+      const res = await this.db
+        .prepare(
+          "UPDATE email_outbox SET status = 'processing', updated_at = ? WHERE id = ? AND status = 'pending'"
+        )
         .bind(now, row.id)
         .run();
+      if (res.meta.changes) claimed.push(row);
     }
-    return results;
+    return claimed;
   }
 
   async finishOutboxAttempt(
@@ -886,13 +907,15 @@ export class D1Store implements Store {
       providerMessageId?: string;
       error?: string;
       nextAttemptAt?: string | null;
+      countAttempt?: boolean;
     }
   ): Promise<void> {
     const now = new Date().toISOString();
+    const inc = result.countAttempt === false ? 0 : 1;
     await this.db
       .prepare(
         `UPDATE email_outbox SET
-           status = ?, attempt_count = attempt_count + 1, last_attempt_at = ?,
+           status = ?, attempt_count = attempt_count + ?, last_attempt_at = ?,
            sent_at = CASE WHEN ? = 'sent' THEN ? ELSE sent_at END,
            body_html = CASE WHEN ? = 'sent' THEN NULL ELSE body_html END,
            body_text = CASE WHEN ? = 'sent' THEN NULL ELSE body_text END,
@@ -903,6 +926,7 @@ export class D1Store implements Store {
       )
       .bind(
         result.status,
+        inc,
         now,
         result.status,
         now,
@@ -933,6 +957,14 @@ export class D1Store implements Store {
       sent: row?.sent ?? 0,
       failed: row?.failed ?? 0,
     };
+  }
+
+  async getOutboxByEventKey(eventKey: string): Promise<OutboxRow | null> {
+    const row = await this.db
+      .prepare("SELECT * FROM email_outbox WHERE event_key = ?")
+      .bind(eventKey)
+      .first<OutboxRow>();
+    return row ?? null;
   }
 
   async isEmailSuppressed(email: string): Promise<boolean> {
@@ -1056,6 +1088,61 @@ export class D1Store implements Store {
       .bind(status, id)
       .run();
     return !!res.meta.changes;
+  }
+
+  async getOpsMeta(key: string): Promise<string | null> {
+    const row = await this.db
+      .prepare("SELECT value FROM ops_meta WHERE key = ?")
+      .bind(key)
+      .first<{ value: string }>();
+    return row?.value ?? null;
+  }
+
+  async setOpsMeta(key: string, value: string): Promise<void> {
+    await this.db
+      .prepare(
+        "INSERT INTO ops_meta (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at"
+      )
+      .bind(key, value, new Date().toISOString())
+      .run();
+  }
+
+  async readinessCounts() {
+    const [outbox, suppressed, moderation, reports, privacy, legacy] =
+      await Promise.all([
+        this.outboxSummary(),
+        this.db
+          .prepare("SELECT COUNT(*) n FROM email_suppressions")
+          .first<{ n: number }>(),
+        this.db
+          .prepare(
+            "SELECT COUNT(*) n FROM supporters WHERE status = 'pending' AND email_verified_at IS NOT NULL"
+          )
+          .first<{ n: number }>(),
+        this.db
+          .prepare("SELECT COUNT(*) n FROM entry_reports WHERE status = 'open'")
+          .first<{ n: number }>(),
+        this.db
+          .prepare(
+            "SELECT COUNT(*) n FROM privacy_requests WHERE status IN ('pending_verification','verified')"
+          )
+          .first<{ n: number }>(),
+        this.db
+          .prepare(
+            "SELECT COUNT(*) n FROM supporters WHERE consent_source = 'legacy_migration' AND status != 'deleted'"
+          )
+          .first<{ n: number }>(),
+      ]);
+    return {
+      outbox_pending: outbox.pending,
+      outbox_failed: outbox.failed,
+      outbox_sent: outbox.sent,
+      suppressed: suppressed?.n ?? 0,
+      pending_moderation: moderation?.n ?? 0,
+      open_reports: reports?.n ?? 0,
+      pending_privacy_requests: privacy?.n ?? 0,
+      legacy_consent_supporters: legacy?.n ?? 0,
+    };
   }
 
   async retentionCleanup() {

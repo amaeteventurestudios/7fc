@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
-  const turnstile = await verifyTurnstile(body.turnstile_token, ip);
+  const turnstile = await verifyTurnstile(body.turnstile_token, ip, "wall_report");
   if (!turnstile.ok)
     return NextResponse.json({ error: "Human verification failed." }, { status: 400 });
 

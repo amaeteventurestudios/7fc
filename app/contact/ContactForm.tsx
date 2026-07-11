@@ -95,7 +95,7 @@ export default function ContactForm() {
       </label>
       {/* Honeypot — humans never see or fill this */}
       <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
-      <TurnstileWidget />
+      <TurnstileWidget action="contact" />
       {error && (
         <p className="text-center text-sm text-red-400" role="alert">{error}</p>
       )}

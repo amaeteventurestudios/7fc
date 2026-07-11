@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Submission rejected." }, { status: 400 });
   }
 
-  const turnstile = await verifyTurnstile(body.turnstile_token, ip);
+  const turnstile = await verifyTurnstile(body.turnstile_token, ip, "wall_signup");
   if (!turnstile.ok) {
     return NextResponse.json(
       { error: "Human verification failed. Please try again." },
@@ -81,6 +81,18 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
 
+  // Signups require a working verification email. Refuse cleanly BEFORE
+  // creating any record — never a dead-end "check your email" promise.
+  if (!emailEnabled()) {
+    return NextResponse.json(
+      {
+        error:
+          "New signups are temporarily paused for maintenance. Nothing from this form has been saved — please try again soon.",
+      },
+      { status: 503 }
+    );
+  }
+
   const store = await getStore();
 
   // One active supporter record per email.
@@ -106,7 +118,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const requireVerification = emailEnabled();
   const result = await store.submitSupporter({
     first_name,
     last_name: last_name || null,
@@ -122,26 +133,20 @@ export async function POST(req: NextRequest) {
       display_consent,
       marketing_consent,
       age_attested,
-      require_email_verification: requireVerification,
+      require_email_verification: true,
     },
   });
 
   if ("error" in result) return NextResponse.json(result, { status: 403 });
 
-  if (requireVerification) {
-    const supporter = await store.getSupporterById(result.id);
-    if (supporter) await queueVerificationEmail(store, supporter);
-    return NextResponse.json(
-      {
-        supporter_number: result.supporter_number,
-        status: "pending_email_verification",
-        needs_verification: true,
-      },
-      { status: 201 }
-    );
-  }
+  const supporter = await store.getSupporterById(result.id);
+  if (supporter) await queueVerificationEmail(store, supporter);
   return NextResponse.json(
-    { supporter_number: result.supporter_number, status: result.status },
+    {
+      supporter_number: result.supporter_number,
+      status: "pending_email_verification",
+      needs_verification: true,
+    },
     { status: 201 }
   );
 }

@@ -2,25 +2,44 @@
  * Cloudflare Turnstile server-side validation.
  * https://developers.cloudflare.com/turnstile/get-started/server-side-validation/
  *
- * When TURNSTILE_SECRET_KEY is not configured the check is skipped and
- * `configured: false` is reported — deployment docs list adding the keys as a
- * required manual step. The honeypot and rate limits still apply either way.
+ * Secrets: only TURNSTILE_SECRET_KEY (server secret, never bundled to the
+ * browser) is used here; the client widget uses only
+ * NEXT_PUBLIC_TURNSTILE_SITE_KEY. When the secret is not configured the
+ * check is skipped and reported as unconfigured on the admin readiness view;
+ * rate limiting and honeypots remain active as defense in depth. There is no
+ * test-key or bypass flag that can activate in production.
  */
+import { SITE_URL } from "@/lib/site";
 
 export function turnstileConfigured(): boolean {
   return !!process.env.TURNSTILE_SECRET_KEY;
 }
 
+interface SiteverifyResponse {
+  success?: boolean;
+  hostname?: string;
+  action?: string;
+  "error-codes"?: string[];
+}
+
+/** Injectable fetch for tests. */
+export type SiteverifyFetch = (
+  url: string,
+  init: { method: string; headers: Record<string, string>; body: string }
+) => Promise<{ json(): Promise<unknown> }>;
+
 export async function verifyTurnstile(
   token: unknown,
-  ip: string
-): Promise<{ ok: boolean; configured: boolean }> {
+  ip: string,
+  expectedAction?: string,
+  fetchImpl: SiteverifyFetch = fetch
+): Promise<{ ok: boolean; configured: boolean; reason?: string }> {
   const secret = process.env.TURNSTILE_SECRET_KEY;
   if (!secret) return { ok: true, configured: false };
   if (typeof token !== "string" || !token || token.length > 2048)
-    return { ok: false, configured: true };
+    return { ok: false, configured: true, reason: "missing-token" };
   try {
-    const res = await fetch(
+    const res = await fetchImpl(
       "https://challenges.cloudflare.com/turnstile/v0/siteverify",
       {
         method: "POST",
@@ -32,9 +51,23 @@ export async function verifyTurnstile(
         }),
       }
     );
-    const json = (await res.json()) as { success?: boolean };
-    return { ok: json.success === true, configured: true };
+    const json = (await res.json()) as SiteverifyResponse;
+    if (json.success !== true)
+      return { ok: false, configured: true, reason: "rejected" };
+    // Hostname must match the canonical site (or localhost during dev).
+    const expectedHost = new URL(SITE_URL).hostname;
+    if (
+      json.hostname &&
+      json.hostname !== expectedHost &&
+      json.hostname !== "localhost"
+    )
+      return { ok: false, configured: true, reason: "hostname-mismatch" };
+    // Action must match the form that requested verification (when set).
+    if (expectedAction && json.action && json.action !== expectedAction)
+      return { ok: false, configured: true, reason: "action-mismatch" };
+    return { ok: true, configured: true };
   } catch {
-    return { ok: false, configured: true };
+    // Fail closed: a verification outage must not open the door to bots.
+    return { ok: false, configured: true, reason: "network-error" };
   }
 }
