@@ -5,6 +5,7 @@ import { Reveal, SectionTitle, CONTAINER } from "./ui";
 import { productImage, productSlug } from "@/lib/kit";
 import { PRIMARY_NAV } from "@/lib/site";
 import { KitImage } from "./KitProductPage";
+import { EditorialImageBadge } from "./KitDisclosure";
 import type { AffiliateProduct, LegalDisclaimers } from "@/lib/types";
 
 export function KitSection({
@@ -29,12 +30,17 @@ export function KitSection({
           {shown.map((p, i) => (
             <Reveal key={p.id} delay={i * 60}>
               <div className="glass-card h-full overflow-hidden text-center flex flex-col hover:border-gold/50 transition-colors">
-                <Link href={`/kit/${productSlug(p)}`} aria-label={p.title}>
+                <Link
+                  href={`/kit/${productSlug(p)}`}
+                  aria-label={p.title}
+                  className="relative block"
+                >
                   <KitImage
                     src={productImage(p)}
                     alt={p.title}
                     className="w-full aspect-[3/2] object-cover"
                   />
+                  <EditorialImageBadge />
                 </Link>
                 <div className="p-5 flex flex-col flex-1">
                   <p className="text-[10px] tracking-[0.25em] uppercase text-electric">

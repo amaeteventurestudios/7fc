@@ -4,6 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { CONTAINER, Reveal } from "./ui";
 import { KIT_FALLBACK_IMAGE, productImage, productSlug, parseTags } from "@/lib/kit";
+import {
+  AffiliateDisclosure,
+  EditorialImageBadge,
+  ProductImageWarning,
+} from "./KitDisclosure";
 import type { AffiliateProduct } from "@/lib/types";
 
 function trackClick(id: string) {
@@ -43,12 +48,17 @@ export function KitImage({
 export function RelatedCard({ p }: { p: AffiliateProduct }) {
   return (
     <div className="glass-card overflow-hidden text-center flex flex-col hover:border-gold/50 transition-colors h-full">
-      <Link href={`/kit/${productSlug(p)}`} aria-label={p.short_title || p.title}>
+      <Link
+        href={`/kit/${productSlug(p)}`}
+        aria-label={p.short_title || p.title}
+        className="relative block"
+      >
         <KitImage
           src={productImage(p)}
           alt={p.image_alt || p.title}
           className="w-full aspect-[3/2] object-cover"
         />
+        <EditorialImageBadge />
       </Link>
       <div className="p-4 flex flex-col flex-1">
         <p className="text-[10px] tracking-[0.25em] uppercase text-electric">
@@ -143,6 +153,7 @@ export default function KitProductPage({
               ))}
             </div>
           )}
+          <ProductImageWarning />
           {product.image_disclaimer && (
             <p className="text-[11px] text-gray-500 mt-3 leading-relaxed">
               {product.image_disclaimer}
@@ -183,11 +194,7 @@ export default function KitProductPage({
           >
             {product.button_text || "Check Current Price on Amazon"} ↗
           </a>
-          {product.affiliate_disclosure && (
-            <p className="text-center text-[11px] text-gray-500 mt-4">
-              {product.affiliate_disclosure}
-            </p>
-          )}
+          <AffiliateDisclosure text={product.affiliate_disclosure} />
         </div>
       </div>
 

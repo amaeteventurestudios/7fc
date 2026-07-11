@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { CONTAINER, Reveal } from "./ui";
 import { KitImage } from "./KitProductPage";
+import { CollectionImageNotice, EditorialImageBadge } from "./KitDisclosure";
 import { productImage, productSlug } from "@/lib/kit";
 import type { AffiliateProduct } from "@/lib/types";
 
@@ -65,17 +66,24 @@ export default function KitCollection({
         ))}
       </div>
 
+      <CollectionImageNotice />
+
       {/* Product grid */}
       <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {shown.map((p, i) => (
           <Reveal key={p.id} delay={Math.min(i, 5) * 60}>
             <div className="glass-card h-full overflow-hidden text-center flex flex-col hover:border-gold/50 transition-colors">
-              <Link href={`/kit/${productSlug(p)}`} aria-label={p.short_title || p.title}>
+              <Link
+                href={`/kit/${productSlug(p)}`}
+                aria-label={p.short_title || p.title}
+                className="relative block"
+              >
                 <KitImage
                   src={productImage(p)}
                   alt={p.image_alt || p.title}
                   className="w-full aspect-[3/2] object-cover"
                 />
+                <EditorialImageBadge />
               </Link>
               <div className="p-5 flex flex-col flex-1">
                 <p className="text-[10px] tracking-[0.25em] uppercase text-electric">
