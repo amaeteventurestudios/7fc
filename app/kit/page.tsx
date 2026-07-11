@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getStore } from "@/lib/data";
-import { SITE_URL } from "@/lib/site";
+import { SITE_URL, OG_PREVIEW_IMAGE } from "@/lib/site";
 import { DisclaimerBar, Nav } from "@/components/public/TopSections";
 import { SiteFooter } from "@/components/public/BottomSections";
 import KitCollection from "@/components/public/KitCollection";
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     title: "7FC Kit | Football Collectibles, Training Gear and Fan Picks",
     description:
       "A curated collection of football collectibles, fragrance, fan display pieces, apparel, and training gear from the 7FC Kit.",
-    images: [{ url: "/images/7fc-og-preview.webp", width: 1200, height: 630 }],
+    images: [{ url: OG_PREVIEW_IMAGE, width: 1200, height: 630 }],
   },
 };
 

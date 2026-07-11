@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getStore } from "@/lib/data";
-import { SITE_URL } from "@/lib/site";
+import { SITE_URL, OG_PREVIEW_IMAGE } from "@/lib/site";
 import { DisclaimerBar, Nav } from "@/components/public/TopSections";
 import { Moments, QuoteBanner } from "@/components/public/MidSections";
 import { SiteFooter } from "@/components/public/BottomSections";
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     title: "Iconic Moments | Performances That Defined the Number 7",
     description:
       "Champions League nights, unforgettable goals, and major titles — the moments that defined the number 7.",
-    images: [{ url: "/images/7fc-og-preview.webp", width: 1200, height: 630 }],
+    images: [{ url: OG_PREVIEW_IMAGE, width: 1200, height: 630 }],
   },
 };
 

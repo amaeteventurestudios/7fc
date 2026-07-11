@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Cinzel, Inter } from "next/font/google";
 import "./globals.css";
+import { SITE_URL, OG_PREVIEW_IMAGE } from "@/lib/site";
 
 const cinzel = Cinzel({
   variable: "--font-cinzel",
@@ -12,8 +13,6 @@ const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
 });
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://sevenfc.net";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -39,7 +38,7 @@ export const metadata: Metadata = {
       "An independent, unofficial fan tribute celebrating the discipline, records, and global fan energy of the number 7.",
     images: [
       {
-        url: "/images/7fc-og-preview.webp",
+        url: OG_PREVIEW_IMAGE,
         width: 1200,
         height: 630,
         alt: "7FC — The CR7 Legacy. Forever 7. Unofficial fan tribute.",
@@ -51,7 +50,7 @@ export const metadata: Metadata = {
     title: "7FC — The CR7 Legacy. Forever 7.",
     description:
       "An independent, unofficial fan tribute celebrating the discipline, records, and global fan energy of the number 7.",
-    images: ["/images/7fc-og-preview.webp"],
+    images: [OG_PREVIEW_IMAGE],
   },
 };
 

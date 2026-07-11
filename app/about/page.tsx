@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getStore } from "@/lib/data";
-import { SITE_URL } from "@/lib/site";
+import { SITE_URL, OG_PREVIEW_IMAGE } from "@/lib/site";
 import { DisclaimerBar, Nav } from "@/components/public/TopSections";
 import { AboutFaqFooter } from "@/components/public/BottomSections";
 import PageHero from "@/components/public/PageHero";
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     title: "About 7FC | An Unofficial Fan Tribute to the Number 7",
     description:
       "What 7FC is, what it stands for, and why it exists — an independent, unofficial fan tribute.",
-    images: [{ url: "/images/7fc-og-preview.webp", width: 1200, height: 630 }],
+    images: [{ url: OG_PREVIEW_IMAGE, width: 1200, height: 630 }],
   },
 };
 
