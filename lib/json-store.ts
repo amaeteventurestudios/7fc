@@ -306,6 +306,11 @@ export class JsonStore implements Store {
       stats: {
         total_supporters: live.length,
         pending_approval: live.filter((s) => s.status === "pending").length,
+        flagged_review: live.filter(
+          (s) => s.status === "pending" && !!s.email_verified_at
+        ).length,
+        auto_approved: live.filter((s) => s.status === "approved").length,
+        unpublished: live.filter((s) => s.status === "hidden").length,
         countries: new Set(live.map((s) => s.country_code)).size,
         email_signups: new Set(live.map((s) => s.email)).size,
         affiliate_clicks: db.affiliate_products.reduce(
@@ -344,14 +349,49 @@ export class JsonStore implements Store {
     return mutate((db) => {
       const s = db.supporters.find((x) => x.id === id);
       if (!s || s.email_verified_at || s.status !== "pending") return null;
-      const now = new Date().toISOString();
-      s.email_verified_at = now;
-      if (!db.global_wall_settings.require_manual_approval) {
-        s.status = "approved";
-        s.published_at = now;
-      }
+      // Verified but still pending + nonpublic; approval is decided by the
+      // verify route (clean → autoApproveVerified; flagged → stays pending).
+      s.email_verified_at = new Date().toISOString();
       return { ...s };
     });
+  }
+
+  async autoApproveVerified(id: string): Promise<Supporter | null> {
+    return mutate((db) => {
+      const s = db.supporters.find((x) => x.id === id);
+      // Guarded exactly-once transition.
+      if (
+        !s ||
+        s.status !== "pending" ||
+        !s.email_verified_at ||
+        !s.display_consent
+      )
+        return null;
+      const now = new Date().toISOString();
+      s.status = "approved";
+      s.published_at = s.published_at ?? now;
+      logActivity(
+        db,
+        "supporter_approved",
+        `Supporter #${s.supporter_number} auto-approved after verification`
+      );
+      return { ...s };
+    });
+  }
+
+  async hasDuplicateMessage(
+    normalizedMessage: string,
+    excludeId: string
+  ): Promise<boolean> {
+    if (!normalizedMessage) return false;
+    const db = await readDb();
+    return db.supporters.some(
+      (s) =>
+        s.id !== excludeId &&
+        s.status !== "deleted" &&
+        !!s.message &&
+        s.message.toLowerCase().trim() === normalizedMessage
+    );
   }
 
   async updateSupporterFields(
@@ -764,6 +804,27 @@ export class JsonStore implements Store {
             s.created_at < iso(RETENTION.unverifiedSignupMs)
           )
       );
+      // Flagged verified submissions left unresolved past retention →
+      // anonymize (number stays retired, personal data cleared).
+      for (const s of db.supporters) {
+        if (
+          s.status === "pending" &&
+          s.email_verified_at &&
+          s.created_at < iso(RETENTION.flaggedReviewMs)
+        ) {
+          s.first_name = "Deleted";
+          s.last_name = null;
+          s.email = `deleted-${s.id}@invalid.sevenfc.net`;
+          s.favorite_era = null;
+          s.message = null;
+          s.show_full_name = false;
+          s.display_consent = false;
+          s.marketing_consent = false;
+          s.status = "deleted";
+          s.deleted_at = new Date().toISOString();
+          s.moderation_note = null;
+        }
+      }
       const beforeTokens = (db.security_tokens ?? []).length;
       const nowIso = new Date(now).toISOString();
       db.security_tokens = (db.security_tokens ?? []).filter(

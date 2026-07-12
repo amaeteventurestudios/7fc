@@ -41,7 +41,9 @@ export const TEMP_ADMIN_PASSWORD =
 
 export const DEFAULT_SETTINGS: GlobalWallSettings = {
   enable_submissions: true,
-  require_manual_approval: true,
+  // Auto-approve verified clean submissions; only flagged ones go to the
+  // moderation queue. Set true to force every verified signup into review.
+  require_manual_approval: false,
   show_supporter_count: true,
   show_country_count: true,
   show_latest_supporters: true,

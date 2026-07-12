@@ -11,6 +11,7 @@ processing call, `POST /api/admin/outbox`). The Privacy Policy
 | Management links | Expire after **1 hour**; revoked on deletion or reissue | Expiry check + invalidation |
 | Privacy-request verification tokens | Expire after **24 hours**, one-time | Expiry check at consumption |
 | Unverified signups | Deleted after **7 days** | retentionCleanup |
+| Flagged verified submissions (held in review queue, unresolved) | Anonymized after **30 days** (number retired, not reused) | retentionCleanup |
 | Used/expired token rows | Purged after **30 days** | retentionCleanup |
 | Sent email bodies (incl. contact payloads) | Redacted immediately on send; stragglers redacted after **7 days** | send path + retentionCleanup |
 | Outbox metadata rows | Purged after **90 days** (non-pending) | retentionCleanup |

@@ -280,10 +280,8 @@ export function GlobalWallForm({
               </p>
               <p className="text-sm md:text-base text-gray-300 mt-5" role="status">
                 {result.needs_verification
-                  ? "Thank you for signing up for 7FC. We sent a verification link to your email address. Please verify your email within 24 hours. Your submission will not be reviewed or published until your email is verified."
-                  : result.status === "pending"
-                    ? "Your profile will appear on the Global 7 Wall after approval."
-                    : "You are now live on the Global 7 Wall."}
+                  ? "Thank you for signing up for 7FC. We sent a verification link to your email address. Please verify your email within 24 hours."
+                  : "You are now live on the Global 7 Wall."}
               </p>
               <p className="text-[11px] tracking-[0.2em] uppercase text-gold/70 mt-5">
                 I raised my 7 on SevenFC.net

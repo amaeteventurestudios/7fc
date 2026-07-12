@@ -6,6 +6,9 @@ import { AdminCard } from "@/components/admin/AdminShell";
 interface Stats {
   total_supporters: number;
   pending_approval: number;
+  flagged_review: number;
+  auto_approved: number;
+  unpublished: number;
   countries: number;
   email_signups: number;
   affiliate_clicks: number;
@@ -43,24 +46,36 @@ export default function AdminDashboard() {
 
   const cards = stats
     ? ([
-        ["Total Supporters", stats.total_supporters],
-        ["Pending Approval", stats.pending_approval],
-        ["Countries Represented", stats.countries],
-        ["Email Signups", stats.email_signups],
-        ["Affiliate Clicks", stats.affiliate_clicks],
-        ["Top Era", stats.top_era],
-        ["Today's Signups", stats.today_signups],
+        ["Flagged for Review", stats.flagged_review, true],
+        ["Live Supporters", stats.auto_approved, false],
+        ["Unpublished", stats.unpublished, false],
+        ["Total Supporters", stats.total_supporters, false],
+        ["Countries Represented", stats.countries, false],
+        ["Email Signups", stats.email_signups, false],
+        ["Affiliate Clicks", stats.affiliate_clicks, false],
+        ["Today's Signups", stats.today_signups, false],
       ] as const)
     : [];
 
   return (
     <div className="space-y-8">
       <h1 className="text-lg font-bold text-white">Dashboard</h1>
+      <p className="text-xs text-gray-500 -mt-4">
+        Verified clean signups publish automatically — only flagged submissions
+        need your review. See the <span className="text-gold-2">Readiness</span>{" "}
+        page for reports and email-delivery health.
+      </p>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {cards.map(([label, value]) => (
+        {cards.map(([label, value, highlight]) => (
           <AdminCard key={label}>
             <p className="text-[10px] uppercase tracking-wider text-gray-500">{label}</p>
-            <p className="text-2xl font-bold gold-text mt-1">{value}</p>
+            <p
+              className={`text-2xl font-bold mt-1 ${
+                highlight && Number(value) > 0 ? "text-amber-300" : "gold-text"
+              }`}
+            >
+              {value}
+            </p>
           </AdminCard>
         ))}
         {!stats && <p className="text-sm text-gray-500">Loading…</p>}

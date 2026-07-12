@@ -616,6 +616,9 @@ export class D1Store implements Store {
         .prepare(
           `SELECT COUNT(*) AS total,
                   SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending,
+                  SUM(CASE WHEN status = 'pending' AND email_verified_at IS NOT NULL THEN 1 ELSE 0 END) AS flagged,
+                  SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) AS approved,
+                  SUM(CASE WHEN status = 'hidden' THEN 1 ELSE 0 END) AS hidden,
                   COUNT(DISTINCT country_code) AS countries,
                   COUNT(DISTINCT email) AS emails,
                   SUM(CASE WHEN created_at LIKE ? THEN 1 ELSE 0 END) AS today
@@ -625,6 +628,9 @@ export class D1Store implements Store {
         .first<{
           total: number;
           pending: number | null;
+          flagged: number | null;
+          approved: number | null;
+          hidden: number | null;
           countries: number;
           emails: number;
           today: number | null;
@@ -651,6 +657,9 @@ export class D1Store implements Store {
       stats: {
         total_supporters: totals?.total ?? 0,
         pending_approval: totals?.pending ?? 0,
+        flagged_review: totals?.flagged ?? 0,
+        auto_approved: totals?.approved ?? 0,
+        unpublished: totals?.hidden ?? 0,
         countries: totals?.countries ?? 0,
         email_signups: totals?.emails ?? 0,
         affiliate_clicks: clicks?.n ?? 0,
@@ -682,21 +691,59 @@ export class D1Store implements Store {
   }
 
   async markSupporterVerified(id: string): Promise<Supporter | null> {
-    const settings = await this.getSettings();
     const now = new Date().toISOString();
-    const nextStatus: SupporterStatus = settings.require_manual_approval
-      ? "pending"
-      : "approved";
+    // Mark verified but keep the entry pending + nonpublic. Approval (and
+    // publication) is decided afterward by the verify route: clean
+    // submissions in auto-approve mode call autoApproveVerified; flagged
+    // ones stay pending for the moderation queue.
     const res = await this.db
       .prepare(
         `UPDATE supporters
-         SET email_verified_at = ?, status = ?, published_at = CASE WHEN ? = 'approved' THEN ? ELSE published_at END
+         SET email_verified_at = ?
          WHERE id = ? AND email_verified_at IS NULL AND status = 'pending'`
       )
-      .bind(now, nextStatus, nextStatus, now, id)
+      .bind(now, id)
       .run();
     if (!res.meta.changes) return null;
     return this.getSupporterById(id);
+  }
+
+  async autoApproveVerified(id: string): Promise<Supporter | null> {
+    const now = new Date().toISOString();
+    // Atomic + guarded: only a verified, still-pending row with active
+    // display consent transitions. Retries find status != 'pending' and
+    // change nothing, so approval/publication/number stay exactly-once.
+    const res = await this.db
+      .prepare(
+        `UPDATE supporters
+         SET status = 'approved', published_at = COALESCE(published_at, ?)
+         WHERE id = ? AND status = 'pending' AND email_verified_at IS NOT NULL
+           AND display_consent = 1`
+      )
+      .bind(now, id)
+      .run();
+    if (!res.meta.changes) return null;
+    await this.log(
+      "supporter_approved",
+      `Supporter #(auto) approved after verification`
+    );
+    return this.getSupporterById(id);
+  }
+
+  async hasDuplicateMessage(
+    normalizedMessage: string,
+    excludeId: string
+  ): Promise<boolean> {
+    if (!normalizedMessage) return false;
+    const row = await this.db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM supporters
+         WHERE id != ? AND status != 'deleted' AND message IS NOT NULL
+           AND LOWER(TRIM(message)) = ?`
+      )
+      .bind(excludeId, normalizedMessage)
+      .first<{ n: number }>();
+    return (row?.n ?? 0) > 0;
   }
 
   async updateSupporterFields(
@@ -1194,6 +1241,18 @@ export class D1Store implements Store {
       )
       .bind(iso(RETENTION.unverifiedSignupMs))
       .run();
+    // 1b. Flagged verified submissions left unresolved in the review queue
+    //     past retention — anonymize (keeps the number retired, not reused).
+    const staleFlagged = await this.db
+      .prepare(
+        `SELECT id FROM supporters
+         WHERE status = 'pending' AND email_verified_at IS NOT NULL AND created_at < ?`
+      )
+      .bind(iso(RETENTION.flaggedReviewMs))
+      .all<{ id: string }>();
+    for (const row of staleFlagged.results) {
+      await this.anonymizeSupporter(row.id);
+    }
     // 2. Old used/expired token rows.
     const tokens = await this.db
       .prepare(

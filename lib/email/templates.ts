@@ -115,42 +115,58 @@ ${UNOFFICIAL}`;
   return { subject, html, text };
 }
 
-export function ownerSignupAlert(s: {
+/** Owner alert for a CLEAN, auto-approved & published supporter.
+ *  Contains only what the owner needs for after-the-fact moderation. */
+export function ownerNewSupporterAlert(s: {
   supporterNumber: number;
-  firstName: string;
-  lastName: string | null;
-  email: string;
+  displayName: string;
   country: string;
-  era: string | null;
-  message: string | null;
-  displayConsent: boolean;
-  marketingConsent: boolean;
-  verifiedAt: string;
-  status: string;
   createdAt: string;
 }): EmailContent {
-  const subject = "New Verified 7FC Signup Awaiting Review";
+  const subject = stripHeaderChars(
+    `New 7FC Supporter: #${s.supporterNumber}, ${s.country}`
+  );
   const rows: Array<[string, string]> = [
     ["Supporter number", `#${s.supporterNumber}`],
-    ["First name", s.firstName],
-    ["Last name", s.lastName || "—"],
-    ["Email (private)", s.email],
+    ["Display name", s.displayName],
     ["Country", s.country],
-    ["Favorite era", s.era || "—"],
-    ["Message", s.message || "—"],
-    ["Public display consent", s.displayConsent ? "Yes" : "No"],
-    ["Marketing consent", s.marketingConsent ? "Yes" : "No"],
-    ["Email verified (UTC)", s.verifiedAt],
-    ["Moderation status", s.status],
     ["Signup time (UTC)", s.createdAt],
   ];
   const html = layout(subject, `
-    <p style="margin-top:0;font-weight:bold;color:#f0d492;">A verified signup is awaiting moderation review</p>
+    <p style="margin-top:0;font-weight:bold;color:#f0d492;">A new supporter was automatically approved and is now live.</p>
     <table style="width:100%;border-collapse:collapse;font-size:14px;">
       ${rows.map(([k, v]) => `<tr><td style="padding:6px 8px;color:#9ca3af;border-bottom:1px solid #1f2937;white-space:nowrap;">${esc(k)}</td><td style="padding:6px 8px;border-bottom:1px solid #1f2937;">${esc(v)}</td></tr>`).join("")}
     </table>
-    <p style="font-size:13px;color:#9ca3af;">Review in the protected admin area: <a href="${SITE_URL}/admin" style="color:#d4af5e;">${SITE_URL}/admin</a> (login required).</p>`);
-  const text = `New verified 7FC supporter signup\n\n${rows.map(([k, v]) => `${k}: ${v}`).join("\n")}\n\nReview (login required): ${SITE_URL}/admin`;
+    <p style="font-size:13px;color:#9ca3af;">Published entry: <a href="${SITE_URL}/wall" style="color:#d4af5e;">${SITE_URL}/wall</a></p>
+    <p style="font-size:13px;color:#9ca3af;">Manage this record (Unpublish / Hide / Delete) in the protected admin area — available only after you sign in: <a href="${SITE_URL}/admin/supporters" style="color:#d4af5e;">${SITE_URL}/admin/supporters</a></p>`);
+  const text = `A new 7FC supporter was automatically approved and is now live.\n\n${rows.map(([k, v]) => `${k}: ${v}`).join("\n")}\n\nPublished entry: ${SITE_URL}/wall\nManage (Unpublish/Hide/Delete, login required): ${SITE_URL}/admin/supporters`;
+  return { subject, html, text };
+}
+
+/** Owner alert for a FLAGGED verified submission held in the review queue.
+ *  Includes the internal flag reason (owner-only) but never sends a welcome. */
+export function ownerReviewAlert(s: {
+  supporterNumber: number;
+  displayName: string;
+  country: string;
+  createdAt: string;
+  flagReason: string;
+}): EmailContent {
+  const subject = "7FC Signup Requires Review";
+  const rows: Array<[string, string]> = [
+    ["Supporter number", `#${s.supporterNumber}`],
+    ["Display name", s.displayName],
+    ["Country", s.country],
+    ["Signup time (UTC)", s.createdAt],
+    ["Flagged reason (internal)", s.flagReason],
+  ];
+  const html = layout(subject, `
+    <p style="margin-top:0;font-weight:bold;color:#f0d492;">A verified signup was held for your review and is not public.</p>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;">
+      ${rows.map(([k, v]) => `<tr><td style="padding:6px 8px;color:#9ca3af;border-bottom:1px solid #1f2937;white-space:nowrap;">${esc(k)}</td><td style="padding:6px 8px;border-bottom:1px solid #1f2937;">${esc(v)}</td></tr>`).join("")}
+    </table>
+    <p style="font-size:13px;color:#9ca3af;">Approve, Reject, or Delete it in the protected admin area (login required): <a href="${SITE_URL}/admin/supporters" style="color:#d4af5e;">${SITE_URL}/admin/supporters</a></p>`);
+  const text = `A verified 7FC signup was held for your review and is not public.\n\n${rows.map(([k, v]) => `${k}: ${v}`).join("\n")}\n\nReview (Approve/Reject/Delete, login required): ${SITE_URL}/admin/supporters`;
   return { subject, html, text };
 }
 
@@ -245,5 +261,26 @@ export function rejectionNotice(firstName: string): EmailContent {
     <p>${esc(body)}</p>
     <p style="font-size:13px;color:#9ca3af;">Community Guidelines: <a href="${SITE_URL}/community-guidelines" style="color:#d4af5e;">${SITE_URL}/community-guidelines</a><br>Questions? <a href="mailto:support@sevenfc.net" style="color:#d4af5e;">support@sevenfc.net</a></p>`);
   const text = `Hi ${firstName},\n\n${body}\n\nCommunity Guidelines: ${SITE_URL}/community-guidelines\nSupport: support@sevenfc.net\n\n${UNOFFICIAL}`;
+  return { subject, html, text };
+}
+
+/** Weekly owner digest — sent ONLY when unresolved flagged submissions or
+ *  open reports exist. Never sent when there is nothing to review. */
+export function reviewDigest(d: {
+  flaggedCount: number;
+  openReports: number;
+}): EmailContent {
+  const subject = "7FC Weekly Review Digest";
+  const rows: Array<[string, string]> = [
+    ["Flagged submissions awaiting review", String(d.flaggedCount)],
+    ["Open entry reports", String(d.openReports)],
+  ];
+  const html = layout(subject, `
+    <p style="margin-top:0;">You have items waiting in the 7FC moderation queue.</p>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;">
+      ${rows.map(([k, v]) => `<tr><td style="padding:6px 8px;color:#9ca3af;border-bottom:1px solid #1f2937;">${esc(k)}</td><td style="padding:6px 8px;border-bottom:1px solid #1f2937;font-weight:bold;">${esc(v)}</td></tr>`).join("")}
+    </table>
+    <p style="font-size:13px;color:#9ca3af;">Review in the protected admin area (login required): <a href="${SITE_URL}/admin/supporters" style="color:#d4af5e;">${SITE_URL}/admin/supporters</a></p>`);
+  const text = `You have items waiting in the 7FC moderation queue.\n\n${rows.map(([k, v]) => `${k}: ${v}`).join("\n")}\n\nReview (login required): ${SITE_URL}/admin/supporters`;
   return { subject, html, text };
 }

@@ -80,10 +80,14 @@ export default function TermsPage() {
                   When you join the Global 7 Wall you submit your first name,
                   optional last name, email address, country, optional favorite
                   era, and an optional message. You must verify your email
-                  address before your entry can proceed, and entries are
-                  moderated before publication. Your email address always
-                  stays private; your last name appears only if you explicitly
-                  choose to show your full name.
+                  address before your entry can proceed. Once verified, a clean
+                  submission may be published automatically; submissions our
+                  safety checks flag are held for manual review first. 7FC may
+                  review, hide, reject, unpublish, or remove any entry at any
+                  time, and automatic publication does not guarantee permanent
+                  publication. Your email address always stays private; your
+                  last name appears only if you explicitly choose to show your
+                  full name.
                 </p>
                 <p>
                   Publication requires your separate, explicit public-display

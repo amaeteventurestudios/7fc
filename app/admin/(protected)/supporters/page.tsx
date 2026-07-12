@@ -123,8 +123,18 @@ export default function SupportersPage() {
                   <td className="pr-3">{s.show_full_name ? "Yes" : "No"}</td>
                   <td className="pr-3">
                     <span className={`px-2 py-0.5 rounded text-[10px] ${STATUS_BADGE[s.status] ?? ""}`}>
-                      {s.status}
+                      {s.status === "pending" && s.email_verified_at
+                        ? "flagged"
+                        : s.status}
                     </span>
+                    {s.status === "pending" && s.email_verified_at && s.moderation_note ? (
+                      <span
+                        className="block text-[10px] text-amber-300/80 mt-1"
+                        title="Internal flag reason — not shown to the supporter"
+                      >
+                        {s.moderation_note}
+                      </span>
+                    ) : null}
                   </td>
                   <td className="pr-3 text-gray-500">
                     {new Date(s.created_at).toLocaleDateString()}

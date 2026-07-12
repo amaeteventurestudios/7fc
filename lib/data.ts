@@ -63,6 +63,12 @@ export type ProductFields = Omit<
 export interface DashboardStats {
   total_supporters: number;
   pending_approval: number;
+  /** Verified submissions held in the review queue (the real task count). */
+  flagged_review: number;
+  /** Approved (auto or manual) supporters. */
+  auto_approved: number;
+  /** Currently hidden/unpublished entries. */
+  unpublished: number;
   countries: number;
   email_signups: number;
   affiliate_clicks: number;
@@ -122,9 +128,17 @@ export interface Store {
   getSupporterById(id: string): Promise<Supporter | null>;
   /** Active (non-deleted) supporter with this normalized email, if any. */
   findSupporterByEmail(email: string): Promise<Supporter | null>;
-  /** Mark email verified; moves pending->pending_moderation (or approved when
-   *  moderation is off). Returns the updated supporter or null. */
+  /** Mark email verified. Status stays `pending` (nonpublic); the verify
+   *  route then classifies and, for clean submissions in auto-approve mode,
+   *  calls autoApproveVerified. Returns the updated supporter or null. */
   markSupporterVerified(id: string): Promise<Supporter | null>;
+  /** Atomically approve+publish a verified pending supporter. Guarded so
+   *  retries can never re-approve, re-publish, or re-number. Returns the
+   *  updated supporter, or null if it was not in the eligible state. */
+  autoApproveVerified(id: string): Promise<Supporter | null>;
+  /** True when another non-deleted supporter already has this exact
+   *  (normalized) message — used for near-duplicate detection. */
+  hasDuplicateMessage(normalizedMessage: string, excludeId: string): Promise<boolean>;
   /** Patch self-service/lifecycle fields (correction, consent changes, unpublish). */
   updateSupporterFields(
     id: string,

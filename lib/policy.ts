@@ -21,6 +21,9 @@ export const RETENTION = {
   privacyTokenMs: 24 * HOUR_MS,
   /** Unverified signups are deleted after 7 days. */
   unverifiedSignupMs: 7 * DAY,
+  /** Flagged verified submissions left unresolved in the review queue are
+   *  removed after 30 days (unless legal/security retention requires longer). */
+  flaggedReviewMs: 30 * DAY,
   /** Used/expired token rows are purged after 30 days. */
   tokenRowMs: 30 * DAY,
   /** Sent email bodies are redacted after 7 days (metadata kept 90 days). */

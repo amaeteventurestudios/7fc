@@ -98,11 +98,17 @@ export default function PrivacyPage() {
             body: (
               <>
                 <p>
-                  <strong>Public (only after email verification, moderation
-                  approval, and your explicit public-display consent):</strong>{" "}
+                  <strong>Public (only after email verification and with your
+                  explicit public-display consent):</strong>{" "}
                   first name, last-name initial (or full last name only if you
                   chose that), country, favorite era, supporter message,
-                  supporter number, and signup month.
+                  supporter number, and signup month. After verification, a
+                  clean entry may be published automatically; entries our
+                  safety checks flag are held for manual review first. 7FC may
+                  review, hide, reject, or remove entries, and you can report an
+                  entry or withdraw your public-display consent at any time —
+                  automatic publication does not guarantee permanent
+                  publication.
                 </p>
                 <p>
                   <strong>Always private:</strong> your email address, full

@@ -51,13 +51,15 @@ export default function CommunityGuidelinesPage() {
             body: (
               <>
                 <p>
-                  Every submission is reviewed before it appears publicly, and
-                  submission does not guarantee publication. 7FC may reject,
-                  hide, correct obvious formatting, unpublish, or remove
-                  content at any time. You keep ownership of what you write;
-                  approved public submissions are displayed and may be indexed
-                  by search engines and AI services according to the consent
-                  you gave at signup.
+                  After you verify your email, a clean submission may be
+                  published automatically, while anything our safety checks
+                  flag is held for manual review first. Either way, 7FC may
+                  review, reject, hide, correct obvious formatting, unpublish,
+                  or remove content at any time — automatic publication does
+                  not guarantee that an entry stays published. You keep
+                  ownership of what you write; approved public submissions are
+                  displayed and may be indexed by search engines and AI
+                  services according to the consent you gave at signup.
                 </p>
                 <p>
                   Repeated or serious abuse can lead to blocking. Entries that

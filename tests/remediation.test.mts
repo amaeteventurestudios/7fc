@@ -373,8 +373,8 @@ test("turnstile: production without secret fails closed (no bypass)", async () =
 
 // ---------- Launch pass: lifecycle email ordering ----------
 
-test("welcome email is queued only on approval, never at verification; owner alert exactly once", async () => {
-  const { queuePostVerification, queueApprovalWelcome, queueRejectionNotice } =
+test("clean approval + flagged review email ordering, exactly-once", async () => {
+  const { queueCleanApproval, queueFlaggedReview, queueRejectionNotice } =
     await import("../lib/wall-lifecycle.ts");
   const res = await store.submitSupporter({
     first_name: "Order",
@@ -398,37 +398,54 @@ test("welcome email is queued only on approval, never at verification; owner ale
   if ("error" in res) return;
   const s = (await store.getSupporterById(res.id))!;
 
-  // Verification stage: owner alert only — no welcome exists yet.
-  await queuePostVerification(store, s);
-  await queuePostVerification(store, s); // retry must not duplicate
-  assert.ok(await store.getOutboxByEventKey(`owner-alert:${s.id}`));
-  assert.equal(await store.getOutboxByEventKey(`welcome:${s.id}`), null);
-
-  // Approval stage: exactly one welcome even across retries.
-  await queueApprovalWelcome(store, s);
-  await queueApprovalWelcome(store, s);
+  // Clean approval: exactly one welcome + one owner "new supporter" alert,
+  // even across retries.
+  await queueCleanApproval(store, s);
+  await queueCleanApproval(store, s);
   const welcome = await store.getOutboxByEventKey(`welcome:${s.id}`);
+  const ownerNew = await store.getOutboxByEventKey(`owner-new:${s.id}`);
   assert.ok(welcome);
   assert.equal(welcome!.subject, `Welcome to 7FC, Supporter #${s.supporter_number}`);
+  assert.ok(ownerNew);
+  assert.match(ownerNew!.subject, /^New 7FC Supporter: #\d+, /);
 
-  // Rejection notice is its own idempotent event and is not the welcome.
+  // Flagged review alert is a distinct idempotent event, never a welcome.
+  await queueFlaggedReview(store, s, "link_in_field");
+  const review = await store.getOutboxByEventKey(`owner-review:${s.id}`);
+  assert.ok(review);
+  assert.equal(review!.subject, "7FC Signup Requires Review");
+
   await queueRejectionNotice(store, s);
   const notice = await store.getOutboxByEventKey(`reject-notice:${s.id}`);
   assert.ok(notice);
   assert.equal(notice!.subject, "An update on your 7FC submission");
 });
 
-test("owner alert uses the required subject and welcome/verification subjects match spec", async () => {
-  const { ownerSignupAlert, verificationEmail, welcomeEmail } = await import(
-    "../lib/email/templates.ts"
+test("owner alert subjects and welcome/verification subjects match spec", async () => {
+  const {
+    ownerNewSupporterAlert,
+    ownerReviewAlert,
+    verificationEmail,
+    welcomeEmail,
+  } = await import("../lib/email/templates.ts");
+  assert.equal(
+    ownerNewSupporterAlert({
+      supporterNumber: 12,
+      displayName: "A B.",
+      country: "Portugal",
+      createdAt: "-",
+    }).subject,
+    "New 7FC Supporter: #12, Portugal"
   );
   assert.equal(
-    ownerSignupAlert({
-      supporterNumber: 1, firstName: "A", lastName: null, email: "a@b.co",
-      country: "PT", era: null, message: null, displayConsent: true,
-      marketingConsent: false, verifiedAt: "-", status: "pending", createdAt: "-",
+    ownerReviewAlert({
+      supporterNumber: 3,
+      displayName: "A",
+      country: "PT",
+      createdAt: "-",
+      flagReason: "link_in_field",
     }).subject,
-    "New Verified 7FC Signup Awaiting Review"
+    "7FC Signup Requires Review"
   );
   assert.equal(verificationEmail("A", "https://x").subject, "Verify your email for 7FC");
   assert.equal(

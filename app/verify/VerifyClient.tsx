@@ -9,7 +9,10 @@ interface VerifyResult {
   ok?: boolean;
   already?: boolean;
   supporter_number?: number;
-  status?: string;
+  /** true when the entry is now live (clean auto-approval). */
+  published?: boolean;
+  /** true when the entry was held for owner review. */
+  review?: boolean;
   error?: string;
 }
 
@@ -48,27 +51,24 @@ function VerifyInner() {
           </p>
         ) : result?.ok ? (
           <div role="status">
-            <p className="text-sm text-gray-300 mt-6">
-              {result.already
-                ? "Your email was already verified."
-                : "Your email is verified. Welcome to 7FC!"}
-            </p>
             {result.supporter_number ? (
-              <p className="font-display text-3xl text-white mt-4 font-black">
+              <p className="font-display text-3xl text-white mt-6 font-black">
                 Supporter #{String(result.supporter_number).padStart(4, "0")}
               </p>
             ) : null}
-            <p className="text-xs text-gray-400 mt-4">
-              {result.status === "pending_moderation" || result.status === "pending"
-                ? "Your email has been verified. Your 7FC submission is now awaiting review. We will notify you when it has been approved."
-                : "Your email has been verified and your entry has been approved. Welcome to the Global 7 Wall!"}
+            <p className="text-sm text-gray-300 mt-4">
+              {result.review
+                ? "Your email has been verified. Your submission requires additional review before it can be published."
+                : "Welcome to 7FC. Your email has been verified and your supporter entry is now live."}
             </p>
-            <Link
-              href="/wall"
-              className="cta-gold-glow inline-block mt-7 border border-gold/60 text-gold-2 font-semibold tracking-widest uppercase text-sm px-8 py-3 rounded"
-            >
-              View the Global 7 Wall
-            </Link>
+            {!result.review && (
+              <Link
+                href="/wall"
+                className="cta-gold-glow inline-block mt-7 border border-gold/60 text-gold-2 font-semibold tracking-widest uppercase text-sm px-8 py-3 rounded"
+              >
+                View the Global 7 Wall
+              </Link>
+            )}
           </div>
         ) : result?.error ? (
           <div role="alert">

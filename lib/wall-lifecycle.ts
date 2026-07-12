@@ -12,11 +12,20 @@ import { enqueueEmail, deliverSoon } from "@/lib/email/outbox";
 import {
   verificationEmail,
   welcomeEmail,
-  ownerSignupAlert,
+  ownerNewSupporterAlert,
+  ownerReviewAlert,
   rejectionNotice,
   REPLY_TO_SUPPORT,
   OWNER_ALERTS_TO,
 } from "@/lib/email/templates";
+
+/** Public display name for owner alerts: first name plus last initial (never
+ *  the full private last name unless the supporter opted to show it). */
+function displayName(s: Supporter): string {
+  if (s.show_full_name && s.last_name) return `${s.first_name} ${s.last_name}`;
+  if (s.last_name) return `${s.first_name} ${s.last_name[0].toUpperCase()}.`;
+  return s.first_name;
+}
 
 /** Create a fresh one-time verification token (invalidates prior ones) and
  *  queue the verification email. resendSeq makes each resend a distinct
@@ -46,40 +55,67 @@ export async function queueVerificationEmail(
   await deliverSoon(store);
 }
 
-/** After successful verification: queue exactly one owner alert
- *  (idempotent event key). The welcome email is NOT sent here — it is sent
- *  only on administrator approval via queueApprovalWelcome. */
-export async function queuePostVerification(
+/** CLEAN auto-approval: exactly one welcome + exactly one owner "new
+ *  supporter" alert. Both event keys are per-supporter, so retries (or a
+ *  later manual re-approve) can never duplicate either message. */
+export async function queueCleanApproval(
   store: Store,
   supporter: Supporter
 ): Promise<void> {
   await enqueueEmail(store, {
-    eventKey: `owner-alert:${supporter.id}`,
+    eventKey: `welcome:${supporter.id}`,
+    type: "supporter_welcome_confirmation",
+    relatedId: supporter.id,
+    to: supporter.email,
+    replyTo: REPLY_TO_SUPPORT,
+    content: welcomeEmail({
+      firstName: supporter.first_name,
+      supporterNumber: supporter.supporter_number,
+      country: supporter.country_name,
+      era: supporter.favorite_era,
+    }),
+  });
+  await enqueueEmail(store, {
+    eventKey: `owner-new:${supporter.id}`,
     type: "owner_signup_alert",
     relatedId: supporter.id,
     to: OWNER_ALERTS_TO,
     replyTo: null,
-    content: ownerSignupAlert({
+    content: ownerNewSupporterAlert({
       supporterNumber: supporter.supporter_number,
-      firstName: supporter.first_name,
-      lastName: supporter.last_name,
-      email: supporter.email,
+      displayName: displayName(supporter),
       country: supporter.country_name,
-      era: supporter.favorite_era,
-      message: supporter.message,
-      displayConsent: supporter.display_consent,
-      marketingConsent: supporter.marketing_consent,
-      verifiedAt: supporter.email_verified_at ?? "\u2014",
-      status:
-        supporter.status === "pending" ? "pending moderation" : supporter.status,
       createdAt: supporter.created_at,
     }),
   });
   await deliverSoon(store);
 }
 
-/** On administrator approval: queue exactly one welcome email (idempotent
- *  event key welcome:{id} — retries can never duplicate it). */
+/** FLAGGED submission: exactly one owner review alert, and NO welcome. */
+export async function queueFlaggedReview(
+  store: Store,
+  supporter: Supporter,
+  flagReason: string
+): Promise<void> {
+  await enqueueEmail(store, {
+    eventKey: `owner-review:${supporter.id}`,
+    type: "owner_signup_alert",
+    relatedId: supporter.id,
+    to: OWNER_ALERTS_TO,
+    replyTo: null,
+    content: ownerReviewAlert({
+      supporterNumber: supporter.supporter_number,
+      displayName: displayName(supporter),
+      country: supporter.country_name,
+      createdAt: supporter.created_at,
+      flagReason,
+    }),
+  });
+  await deliverSoon(store);
+}
+
+/** On administrator approval of a previously-flagged entry: exactly one
+ *  welcome email (same welcome:{id} key so it can never double-send). */
 export async function queueApprovalWelcome(
   store: Store,
   supporter: Supporter
