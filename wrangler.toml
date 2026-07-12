@@ -29,17 +29,22 @@ migrations_dir = "migrations"
 binding = "IMAGES"
 bucket_name = "7fc-images"
 
-# Secrets (never commit values):
-#   npx wrangler secret put SESSION_SECRET
-#   npx wrangler secret put TURNSTILE_SECRET_KEY   (Turnstile widget secret)
-# Public (non-secret) runtime vars — uncomment once the Turnstile widget
-# exists; the SITE key is public by design and served to browsers:
-# [vars]
-# TURNSTILE_SITE_KEY = "0x..."
-# Optional overrides:
-#   npx wrangler secret put ADMIN_TEMP_EMAIL
-#   npx wrangler secret put ADMIN_TEMP_PASSWORD
+# Public (non-secret) runtime variables. Committing these is intentional and
+# keeps them applied on every `wrangler deploy` (a deploy replaces the
+# Worker's plain-text vars with this block — encrypted secrets are untouched).
+#
+# TURNSTILE_SITE_KEY is the PUBLIC Cloudflare Turnstile site key. It is
+# delivered to browsers by design (via /api/turnstile/config), so storing it
+# in source control is safe and ensures deploys never drop it.
+[vars]
+TURNSTILE_SITE_KEY = "0x4AAAAAAD0blRzg07BjMJeC"
+
+# Encrypted Worker secrets (NEVER committed; managed with `wrangler secret put`).
+# These persist across deploys independently of the [vars] block above:
+#   SESSION_SECRET          npx wrangler secret put SESSION_SECRET
+#   TURNSTILE_SECRET_KEY    npx wrangler secret put TURNSTILE_SECRET_KEY
+#   RESEND_API_KEY          npx wrangler secret put RESEND_API_KEY
+#   RESEND_WEBHOOK_SECRET   npx wrangler secret put RESEND_WEBHOOK_SECRET
+# Optional bootstrap overrides (dev only; no production default exists):
+#   ADMIN_TEMP_EMAIL / ADMIN_TEMP_PASSWORD
 # Optional plain var: ADMIN_SETUP_MODE=false force-disables the temporary login button.
-# [vars]
-# ADMIN_SETUP_MODE = "true"
-# NEXT_PUBLIC_SITE_URL = "https://sevenfc.net"
