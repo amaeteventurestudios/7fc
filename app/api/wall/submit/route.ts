@@ -3,7 +3,7 @@ import { getStore } from "@/lib/data";
 import { rateLimit, clientIp } from "@/lib/request";
 import { countryByCode } from "@/lib/countries";
 import { ERAS } from "@/lib/types";
-import { verifyTurnstile } from "@/lib/turnstile";
+import { turnstileGate, limitGate, formStateGate, MINUTE, DAY } from "@/lib/guard";
 import { normalizeEmail } from "@/lib/tokens";
 import { TERMS_VERSION, PRIVACY_VERSION } from "@/lib/policy";
 import { emailEnabled } from "@/lib/email/outbox";
@@ -13,9 +13,11 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export async function POST(req: NextRequest) {
   const ip = clientIp(req);
-  if (!rateLimit(`wall:${ip}`, 5, 60_000)) {
+  // Cheap in-memory pre-filter (per isolate); durable limits below are
+  // authoritative.
+  if (!rateLimit(`wall:${ip}`, 10, 60_000)) {
     return NextResponse.json(
-      { error: "Too many submissions. Please wait a minute." },
+      { error: "Too many attempts were made recently. Please wait and try again." },
       { status: 429 }
     );
   }
@@ -32,13 +34,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Submission rejected." }, { status: 400 });
   }
 
-  const turnstile = await verifyTurnstile(body.turnstile_token, ip, "wall_signup");
-  if (!turnstile.ok) {
-    return NextResponse.json(
-      { error: "Human verification failed. Please try again." },
-      { status: 400 }
-    );
-  }
+  const gate = await turnstileGate(body.turnstile_token, ip, "supporter_signup");
+  if (gate) return gate;
+  const timing = formStateGate(body.form_state);
+  if (timing) return timing;
 
   const first_name = String(body.first_name ?? "").trim();
   const last_name = String(body.last_name ?? "").trim();
@@ -94,6 +93,13 @@ export async function POST(req: NextRequest) {
   }
 
   const store = await getStore();
+
+  // Durable rate limits: 5/IP per 15 min, 3/email per day.
+  const limited = await limitGate(store, [
+    { scope: "signup-ip", identifier: ip, limit: 5, windowMs: 15 * MINUTE },
+    { scope: "signup-email", identifier: email, limit: 3, windowMs: DAY },
+  ]);
+  if (limited) return limited;
 
   // One active supporter record per email.
   const existing = await store.findSupporterByEmail(email);

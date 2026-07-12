@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStore } from "@/lib/data";
 import { rateLimit, clientIp } from "@/lib/request";
-import { verifyTurnstile } from "@/lib/turnstile";
+import { turnstileGate, limitGate, HOUR } from "@/lib/guard";
 import { generateToken, hashToken, normalizeEmail } from "@/lib/tokens";
 import { RETENTION } from "@/lib/policy";
 import { SITE_URL } from "@/lib/site";
@@ -32,7 +32,8 @@ const TYPES: PrivacyRequestType[] = [
  */
 export async function POST(req: NextRequest) {
   const ip = clientIp(req);
-  if (!rateLimit(`privacy:${ip}`, 3, 10 * 60_000))
+  // In-memory pre-filter only; durable limits below govern.
+  if (!rateLimit(`privacy:${ip}`, 10, 10 * 60_000))
     return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });
   let body: Record<string, unknown>;
   try {
@@ -42,9 +43,8 @@ export async function POST(req: NextRequest) {
   }
   if (typeof body.website === "string" && body.website.trim() !== "")
     return NextResponse.json({ error: "Submission rejected." }, { status: 400 });
-  const turnstile = await verifyTurnstile(body.turnstile_token, ip, "privacy_request");
-  if (!turnstile.ok)
-    return NextResponse.json({ error: "Human verification failed." }, { status: 400 });
+  const gate = await turnstileGate(body.turnstile_token, ip, "privacy_request");
+  if (gate) return gate;
 
   const email = normalizeEmail(String(body.email ?? ""));
   const requestType = String(body.request_type ?? "") as PrivacyRequestType;
@@ -67,6 +67,11 @@ export async function POST(req: NextRequest) {
   }
 
   const store = await getStore();
+  const durableLimited = await limitGate(store, [
+    { scope: "privacy-ip", identifier: ip, limit: 5, windowMs: HOUR },
+    { scope: "privacy-email", identifier: email, limit: 3, windowMs: HOUR },
+  ]);
+  if (durableLimited) return durableLimited;
   const request = await store.createPrivacyRequest({
     email,
     request_type: requestType,

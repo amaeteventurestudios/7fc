@@ -680,6 +680,40 @@ export class JsonStore implements Store {
     });
   }
 
+  async incrementRateLimit(key: string, windowMs: number) {
+    return mutate((db) => {
+      const d = db as unknown as {
+        rate_limits?: Record<string, { count: number; reset_at: string }>;
+      };
+      d.rate_limits ??= {};
+      const now = Date.now();
+      const row = d.rate_limits[key];
+      if (!row || new Date(row.reset_at).getTime() <= now) {
+        d.rate_limits[key] = {
+          count: 1,
+          reset_at: new Date(now + windowMs).toISOString(),
+        };
+      } else {
+        row.count += 1;
+      }
+      return { ...d.rate_limits[key] };
+    });
+  }
+
+  async hasPermanentAdmin(): Promise<boolean> {
+    const db = await readDb();
+    return db.admin_users.some((a) => !a.is_temporary);
+  }
+
+  async countActiveRateLimits(): Promise<number> {
+    const db = (await readDb()) as unknown as {
+      rate_limits?: Record<string, { count: number; reset_at: string }>;
+    };
+    const now = new Date().toISOString();
+    return Object.values(db.rate_limits ?? {}).filter((r) => r.reset_at > now)
+      .length;
+  }
+
   async getOpsMeta(key: string): Promise<string | null> {
     const db = await readDb();
     return (
@@ -766,6 +800,13 @@ export class JsonStore implements Store {
           (r.status !== "completed" && r.status !== "rejected") ||
           r.created_at >= iso(RETENTION.privacyRequestMs)
       );
+      const d = db as unknown as {
+        rate_limits?: Record<string, { count: number; reset_at: string }>;
+      };
+      const nowIso2 = new Date(now).toISOString();
+      for (const [k, v] of Object.entries(d.rate_limits ?? {})) {
+        if (v.reset_at <= nowIso2) delete d.rate_limits![k];
+      }
       return {
         removedSupporters: beforeSupporters - db.supporters.length,
         removedTokens: beforeTokens - (db.security_tokens ?? []).length,

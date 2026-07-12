@@ -12,9 +12,9 @@
  *  2. Local dev (no key)  -> "dev-log" provider: logs subject+recipient and
  *     marks the row sent so local flows are testable. Never used when
  *     RESEND_API_KEY is present.
- *  3. Production without a key -> emailEnabled() is false; callers fall back
- *     to the legacy no-verification signup flow and no false "email sent"
- *     claims are made. Rows stay pending until a provider exists.
+ *  3. Production without a key -> emailEnabled() is false; email-dependent
+ *     flows refuse up-front with an honest temporary-service message and
+ *     already-queued rows are parked until a provider exists.
  */
 import type { Store } from "@/lib/data";
 import { OUTBOX_BACKOFF_MINUTES, OUTBOX_MAX_ATTEMPTS } from "@/lib/policy";

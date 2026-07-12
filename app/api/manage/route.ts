@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getStore } from "@/lib/data";
 import type { Store } from "@/lib/data";
 import { rateLimit, clientIp } from "@/lib/request";
-import { verifyTurnstile } from "@/lib/turnstile";
+import { turnstileGate, limitGate, HOUR } from "@/lib/guard";
 import { generateToken, hashToken, normalizeEmail } from "@/lib/tokens";
 import { RETENTION } from "@/lib/policy";
 import { SITE_URL } from "@/lib/site";
@@ -118,19 +118,27 @@ export async function POST(req: NextRequest) {
         { status: 503 }
       );
     }
-    if (!rateLimit(`manage-link:${ip}`, 3, 10 * 60_000))
-      return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });
-    const turnstile = await verifyTurnstile(body.turnstile_token, ip, "manage_link");
-    if (!turnstile.ok)
-      return NextResponse.json({ error: "Human verification failed." }, { status: 400 });
+    // Honeypot
+    if (typeof body.website === "string" && body.website.trim() !== "")
+      return NextResponse.json({ error: "Submission rejected." }, { status: 400 });
+    const gate = await turnstileGate(body.turnstile_token, ip, "management_request");
+    if (gate) return gate;
     const email = normalizeEmail(String(body.email ?? ""));
     const neutral = {
       ok: true,
       message:
         "If a supporter record exists for that address, a management link has been emailed to it.",
     };
-    if (!email || email.length > 200 || !rateLimit(`manage-link-email:${email}`, 2, 10 * 60_000))
-      return NextResponse.json(neutral);
+    if (!email || email.length > 200) return NextResponse.json(neutral);
+    // Durable limits: 5/IP per hour (429), 3/email per hour (neutral).
+    const ipLimited = await limitGate(store, [
+      { scope: "manage-ip", identifier: ip, limit: 5, windowMs: HOUR },
+    ]);
+    if (ipLimited) return ipLimited;
+    const emailLimited = await limitGate(store, [
+      { scope: "manage-email", identifier: email, limit: 3, windowMs: HOUR },
+    ]);
+    if (emailLimited) return NextResponse.json(neutral);
     const supporter = await store.findSupporterByEmail(email);
     // Receiving and using the emailed link IS the email-control proof, so
     // legacy (pre-verification-era) supporters can also manage their entry.

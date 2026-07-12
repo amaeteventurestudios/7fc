@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import TurnstileWidget from "@/components/public/TurnstileWidget";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -22,15 +23,18 @@ export default function AdminLoginPage() {
       .catch(() => {});
   }, []);
 
-  async function onSubmit(e: FormEvent) {
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
     setError(null);
     try {
+      const turnstileToken = String(
+        new FormData(e.currentTarget).get("turnstile_token") ?? ""
+      );
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, turnstile_token: turnstileToken }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Login failed.");
@@ -80,6 +84,7 @@ export default function AdminLoginPage() {
               className="w-full bg-night border border-gray-700 rounded px-3 py-2.5 text-sm text-white focus:border-gold focus:outline-none"
             />
           </div>
+          <TurnstileWidget action="admin_login" />
           {error && (
             <p className="text-sm text-red-400 text-center" role="alert">
               {error}

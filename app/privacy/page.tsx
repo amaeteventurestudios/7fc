@@ -57,10 +57,18 @@ export default function PrivacyPage() {
                   <strong>Technical data:</strong> our host (Cloudflare)
                   processes IP addresses and request metadata to serve and
                   protect the site (rate limiting, abuse prevention, bot
-                  detection via Cloudflare Turnstile). We use the IP address
-                  transiently for rate limiting and store at most a truncated,
-                  salted hash for duplicate-report protection — never a raw IP
-                  in our database. Email delivery events (sent, bounced,
+                  detection via Cloudflare Turnstile). Turnstile is an
+                  essential fraud-prevention and security service provided by
+                  Cloudflare: when you submit a protected form it processes
+                  technical signals (such as your IP address and browser
+                  characteristics) solely to distinguish people from bots — it
+                  is not advertising or marketing and we never use it to track
+                  you across sites. For abuse prevention we keep short-lived
+                  rate-limit counters keyed by a one-way keyed hash of the IP
+                  address or email (raw IPs are never stored in our database);
+                  each counter expires with its window — at most 24 hours —
+                  and expired counters are purged automatically. Reports use
+                  at most a truncated, salted hash for duplicate protection. Email delivery events (sent, bounced,
                   complained) are recorded with our email provider&rsquo;s message
                   IDs; hard-bounced or complaining addresses go on a minimal
                   suppression list so we stop emailing them.

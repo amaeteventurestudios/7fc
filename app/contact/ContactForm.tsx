@@ -19,7 +19,7 @@ const inputCls =
   "w-full bg-night border border-gold/25 rounded px-3 py-3 text-sm text-white placeholder-gray-500 focus:border-gold focus:outline-none";
 const labelCls = "block text-[11px] tracking-[0.2em] uppercase text-gold-2 mb-1.5";
 
-export default function ContactForm() {
+export default function ContactForm({ formState = "" }: { formState?: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
@@ -93,9 +93,10 @@ export default function ContactForm() {
           <Link href="/privacy" className="text-gold-2 underline underline-offset-2" target="_blank">Privacy Policy</Link>. *
         </span>
       </label>
+      <input type="hidden" name="form_state" value={formState} />
       {/* Honeypot — humans never see or fill this */}
       <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
-      <TurnstileWidget action="contact" />
+      <TurnstileWidget action="contact_submit" />
       {error && (
         <p className="text-center text-sm text-red-400" role="alert">{error}</p>
       )}

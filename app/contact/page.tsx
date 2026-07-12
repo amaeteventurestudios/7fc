@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { SITE_URL } from "@/lib/site";
 import PageShell from "@/components/public/PageShell";
 import ContactForm from "./ContactForm";
+import { issueFormState } from "@/lib/formstate";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,7 @@ export default function ContactPage() {
         wide
       >
         <div className="grid lg:grid-cols-[1.6fr_1fr] gap-8 items-start">
-          <ContactForm />
+          <ContactForm formState={issueFormState()} />
           <aside className="glass-card p-6 md:p-8">
             <h2 className="font-display text-base font-bold text-gold-2 tracking-wide uppercase">
               Direct email

@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE, verifySessionToken } from "./auth";
 import { getStore } from "./data";
@@ -36,9 +36,37 @@ export async function getAdmin(): Promise<AdminUser | null> {
   return store.getAdminById(adminId);
 }
 
+/** CSRF defense for cookie-authenticated admin APIs: browser requests must
+ *  be same-origin. `sec-fetch-site` (sent by all modern browsers) must be
+ *  same-origin/none when present; an Origin header, when present, must match
+ *  the Host. Non-browser clients (no such headers) pass — they cannot carry
+ *  the victim's cookie. Combined with SameSite=Lax this blocks cross-site
+ *  request forgery on state-changing admin routes. */
+async function sameOriginOk(): Promise<boolean> {
+  const h = await headers();
+  const fetchSite = h.get("sec-fetch-site");
+  if (fetchSite && fetchSite !== "same-origin" && fetchSite !== "none")
+    return false;
+  const origin = h.get("origin");
+  const host = h.get("host");
+  if (origin && host) {
+    try {
+      if (new URL(origin).host !== host) return false;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
+
 export async function requireAdmin(): Promise<
   { admin: AdminUser } | { error: NextResponse }
 > {
+  if (!(await sameOriginOk())) {
+    return {
+      error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+    };
+  }
   const admin = await getAdmin();
   if (!admin) {
     return {

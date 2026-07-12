@@ -27,14 +27,17 @@ const DATA_DIR =
   process.env.SEVENFC_DATA_DIR || path.join(process.cwd(), ".data");
 const DB_PATH = path.join(DATA_DIR, "db.json");
 
+// Local-development-only bootstrap credentials (the JSON store never runs in
+// production, and there is no default in production builds either way).
+const DEV_ONLY = process.env.NODE_ENV !== "production";
 export const TEMP_ADMIN_EMAIL =
   process.env.ADMIN_TEMP_EMAIL ||
   process.env.TEMP_ADMIN_EMAIL ||
-  "admin@7fc.net";
+  (DEV_ONLY ? "admin@7fc.net" : "");
 export const TEMP_ADMIN_PASSWORD =
   process.env.ADMIN_TEMP_PASSWORD ||
   process.env.TEMP_ADMIN_PASSWORD ||
-  "ChangeMe-7FC-Now";
+  (DEV_ONLY ? "ChangeMe-7FC-Now" : "");
 
 export const DEFAULT_SETTINGS: GlobalWallSettings = {
   enable_submissions: true,

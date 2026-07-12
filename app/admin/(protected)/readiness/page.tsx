@@ -42,11 +42,14 @@ function Stat({ label, value }: { label: string; value: number | string }) {
  *  queue/moderation counts. Protected by the admin layout. */
 export default async function ReadinessPage() {
   const store = await getStore();
-  const [counts, lastCron, lastEmail] = await Promise.all([
-    store.readinessCounts(),
-    store.getOpsMeta("last_cron_at"),
-    store.getOpsMeta("last_email_sent_at"),
-  ]);
+  const [counts, lastCron, lastEmail, activeRateWindows, permanentAdmin] =
+    await Promise.all([
+      store.readinessCounts(),
+      store.getOpsMeta("last_cron_at"),
+      store.getOpsMeta("last_email_sent_at"),
+      store.countActiveRateLimits(),
+      store.hasPermanentAdmin(),
+    ]);
   return (
     <div className="space-y-8">
       <h1 className="font-display text-xl font-bold text-gold-2">
@@ -64,12 +67,17 @@ export default async function ReadinessPage() {
             label="Resend webhook configured"
             warn="No / Unknown"
           />
-          <Flag ok={turnstileConfigured()} label="Turnstile configured (server)" />
+          <Flag ok={turnstileConfigured()} label="Turnstile secret configured (server)" />
           <Flag
-            ok={!!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
-            label="Turnstile site key set (client)"
+            ok={
+              !!process.env.TURNSTILE_SITE_KEY ||
+              !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+            }
+            label="Turnstile site key configured (client)"
           />
           <Flag ok={emailEnabled()} label="Transactional email enabled" />
+          <Flag ok={permanentAdmin} label="Admin password hash configured (non-temporary)" />
+          <Flag ok={!!process.env.SESSION_SECRET} label="SESSION_SECRET configured" />
         </div>
         <p className="text-[11px] text-gray-500 mt-2">
           Flags only — secret values are never displayed. While email is not
@@ -99,6 +107,7 @@ export default async function ReadinessPage() {
           Operations
         </h2>
         <div className="grid sm:grid-cols-2 gap-3">
+          <Stat label="Active rate-limit windows (hashed; no IPs)" value={activeRateWindows} />
           <Stat label="Last scheduled outbox run (UTC)" value={lastCron ?? "never"} />
           <Stat label="Last successful email delivery (UTC)" value={lastEmail ?? "never"} />
           <Stat label="Terms / Privacy versions" value={`${TERMS_VERSION} / ${PRIVACY_VERSION}`} />

@@ -20,23 +20,34 @@ export async function GET() {
   const auth = await requireAdmin();
   if ("error" in auth) return auth.error;
   const store = await getStore();
-  const [counts, lastCron, lastEmail] = await Promise.all([
-    store.readinessCounts(),
-    store.getOpsMeta("last_cron_at"),
-    store.getOpsMeta("last_email_sent_at"),
-  ]);
+  const [counts, lastCron, lastEmail, activeRateWindows, permanentAdmin] =
+    await Promise.all([
+      store.readinessCounts(),
+      store.getOpsMeta("last_cron_at"),
+      store.getOpsMeta("last_email_sent_at"),
+      store.countActiveRateLimits(),
+      store.hasPermanentAdmin(),
+    ]);
   return NextResponse.json({
     config: {
       resend_configured: !!process.env.RESEND_API_KEY,
       resend_webhook_configured: !!process.env.RESEND_WEBHOOK_SECRET,
       turnstile_configured: turnstileConfigured(),
-      turnstile_site_key_set: !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+      turnstile_site_key_set:
+        !!process.env.TURNSTILE_SITE_KEY ||
+        !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
       email_enabled: emailEnabled(),
+      // Status only, never values: a permanent (non-temporary) scrypt admin
+      // credential exists in the database.
+      admin_password_hash_configured: permanentAdmin,
+      session_secret_configured: !!process.env.SESSION_SECRET,
     },
     counts,
     ops: {
       last_scheduled_outbox_run: lastCron,
       last_successful_email_delivery: lastEmail,
+      // Count of live hashed rate-limit windows; no identifiers exposed.
+      active_rate_limit_windows: activeRateWindows,
     },
     policy: {
       terms_version: TERMS_VERSION,

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getStore } from "@/lib/data";
 import { rateLimit, clientIp } from "@/lib/request";
 import { privacyHash } from "@/lib/tokens";
-import { verifyTurnstile } from "@/lib/turnstile";
+import { turnstileGate, limitGate, HOUR } from "@/lib/guard";
 
 const REASONS = [
   "spam",
@@ -28,9 +28,8 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
-  const turnstile = await verifyTurnstile(body.turnstile_token, ip, "wall_report");
-  if (!turnstile.ok)
-    return NextResponse.json({ error: "Human verification failed." }, { status: 400 });
+  const gate = await turnstileGate(body.turnstile_token, ip, "entry_report");
+  if (gate) return gate;
 
   const supporterNumber = Number(body.supporter_number);
   const reason = String(body.reason ?? "");
@@ -41,6 +40,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Please choose a reason." }, { status: 400 });
 
   const store = await getStore();
+  const limited = await limitGate(store, [
+    { scope: "report-ip", identifier: ip, limit: 5, windowMs: HOUR },
+  ]);
+  if (limited) return limited;
   // Only published entries can be reported (no probing of private records).
   const { approved } = await store.getPublicHome();
   const target = approved.find((s) => s.supporter_number === supporterNumber);

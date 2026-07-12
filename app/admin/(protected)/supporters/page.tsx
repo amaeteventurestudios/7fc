@@ -43,12 +43,19 @@ export default function SupportersPage() {
     load();
   }, [load]);
 
-  async function act(id: string, action: string) {
+  async function act(id: string, action: string, notify = false) {
     if (action === "delete" && !confirm("Delete this supporter?")) return;
+    if (
+      notify &&
+      !confirm(
+        "Send the supporter a short, respectful not-approved notice? (No internal notes are included.)"
+      )
+    )
+      return;
     await fetch("/api/admin/supporters", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, action }),
+      body: JSON.stringify({ id, action, notify }),
     });
     load();
   }
@@ -132,6 +139,15 @@ export default function SupportersPage() {
                       {s.status !== "hidden" && (
                         <button onClick={() => act(s.id, "hide")} className={adminBtnSecondary}>
                           Hide
+                        </button>
+                      )}
+                      {s.status === "pending" && (
+                        <button
+                          onClick={() => act(s.id, "hide", true)}
+                          className={adminBtnSecondary}
+                          title="Reject and send a respectful status notice"
+                        >
+                          Reject + Notify
                         </button>
                       )}
                       <button onClick={() => act(s.id, "delete")} className={adminBtnDanger}>

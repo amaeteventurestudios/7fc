@@ -60,8 +60,8 @@ function VerifyInner() {
             ) : null}
             <p className="text-xs text-gray-400 mt-4">
               {result.status === "pending_moderation" || result.status === "pending"
-                ? "Your entry is now in moderation review and will appear on the Global 7 Wall once approved. A welcome email is on its way."
-                : "Your entry is live on the Global 7 Wall. A welcome email is on its way."}
+                ? "Your email has been verified. Your 7FC submission is now awaiting review. We will notify you when it has been approved."
+                : "Your email has been verified and your entry has been approved. Welcome to the Global 7 Wall!"}
             </p>
             <Link
               href="/wall"

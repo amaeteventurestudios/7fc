@@ -1,4 +1,5 @@
 import { emailEnabled } from "@/lib/email/outbox";
+import { issueFormState } from "@/lib/formstate";
 import { getStore } from "@/lib/data";
 import { publicSupporterView } from "@/lib/store";
 import { EraProvider } from "@/components/public/EraContext";
@@ -67,7 +68,7 @@ export default async function HomePage() {
           settings={settings}
         />
         <LatestSupporters supporters={latest} settings={settings} />
-        <GlobalWallForm settings={settings} signupAvailable={emailEnabled()} />
+        <GlobalWallForm settings={settings} signupAvailable={emailEnabled()} formState={issueFormState()} />
         <KitSection
           products={products}
           disclosure={legal.affiliate_disclosure}

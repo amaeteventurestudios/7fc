@@ -533,6 +533,9 @@ export class D1Store implements Store {
 
   /** Creates the temporary bootstrap admin if the table is empty (hash only). */
   private async ensureBootstrapAdmin(): Promise<void> {
+    // No bootstrap without explicit credentials (never in production unless
+    // ADMIN_TEMP_* env/secrets are deliberately set).
+    if (!ADMIN_TEMP_EMAIL || !ADMIN_TEMP_PASSWORD) return;
     const row = await this.db
       .prepare("SELECT COUNT(*) AS n FROM admin_users")
       .first<{ n: number }>();
@@ -1090,6 +1093,42 @@ export class D1Store implements Store {
     return !!res.meta.changes;
   }
 
+  async incrementRateLimit(key: string, windowMs: number) {
+    const now = Date.now();
+    const reset = new Date(now + windowMs).toISOString();
+    const nowIso = new Date(now).toISOString();
+    // Atomic: expired windows restart at 1; live windows increment.
+    await this.db
+      .prepare(
+        `INSERT INTO rate_limits (key, count, reset_at) VALUES (?, 1, ?)
+         ON CONFLICT(key) DO UPDATE SET
+           count = CASE WHEN rate_limits.reset_at <= ? THEN 1 ELSE rate_limits.count + 1 END,
+           reset_at = CASE WHEN rate_limits.reset_at <= ? THEN excluded.reset_at ELSE rate_limits.reset_at END`
+      )
+      .bind(key, reset, nowIso, nowIso)
+      .run();
+    const row = await this.db
+      .prepare("SELECT count, reset_at FROM rate_limits WHERE key = ?")
+      .bind(key)
+      .first<{ count: number; reset_at: string }>();
+    return row ?? { count: 1, reset_at: reset };
+  }
+
+  async hasPermanentAdmin(): Promise<boolean> {
+    const row = await this.db
+      .prepare("SELECT COUNT(*) n FROM admin_users WHERE is_temporary = 0")
+      .first<{ n: number }>();
+    return (row?.n ?? 0) > 0;
+  }
+
+  async countActiveRateLimits(): Promise<number> {
+    const row = await this.db
+      .prepare("SELECT COUNT(*) n FROM rate_limits WHERE reset_at > ?")
+      .bind(new Date().toISOString())
+      .first<{ n: number }>();
+    return row?.n ?? 0;
+  }
+
   async getOpsMeta(key: string): Promise<string | null> {
     const row = await this.db
       .prepare("SELECT value FROM ops_meta WHERE key = ?")
@@ -1187,6 +1226,11 @@ export class D1Store implements Store {
         "DELETE FROM privacy_requests WHERE status IN ('completed','rejected') AND created_at < ?"
       )
       .bind(iso(RETENTION.privacyRequestMs))
+      .run();
+    // Expired rate-limit windows (hashed identifiers only) purge immediately.
+    await this.db
+      .prepare("DELETE FROM rate_limits WHERE reset_at <= ?")
+      .bind(new Date(now).toISOString())
       .run();
     return {
       removedSupporters: removed.meta.changes ?? 0,

@@ -1,7 +1,15 @@
 import crypto from "crypto";
 
-const SESSION_SECRET =
-  process.env.SESSION_SECRET || "dev-only-secret-change-in-production";
+/** Fail closed at runtime: production must never sign sessions with a
+ *  predictable secret. (Lazy so `next build` page-data collection — which
+ *  runs without Worker secrets — still works.) */
+function sessionSecret(): string {
+  const s = process.env.SESSION_SECRET;
+  if (s) return s;
+  if (process.env.NODE_ENV === "production")
+    throw new Error("SESSION_SECRET is not configured");
+  return "dev-only-secret-change-in-production";
+}
 export const SESSION_COOKIE = "7fc_admin_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 8; // 8 hours
 
@@ -24,7 +32,7 @@ export function verifyPassword(password: string, stored: string): boolean {
 
 function sign(payload: string): string {
   return crypto
-    .createHmac("sha256", SESSION_SECRET)
+    .createHmac("sha256", sessionSecret())
     .update(payload)
     .digest("hex");
 }

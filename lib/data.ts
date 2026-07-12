@@ -208,6 +208,17 @@ export interface Store {
   /** Single outbox row by idempotency key (admin diagnostics only). */
   getOutboxByEventKey(eventKey: string): Promise<OutboxRow | null>;
 
+  /** Durable rate limiting: atomically increment the counter for key,
+   *  starting a new window when the previous one expired. */
+  incrementRateLimit(
+    key: string,
+    windowMs: number
+  ): Promise<{ count: number; reset_at: string }>;
+  /** Active (unexpired) rate-limit rows, for the readiness summary. */
+  countActiveRateLimits(): Promise<number>;
+  /** True when a permanent (non-temporary) admin credential exists. */
+  hasPermanentAdmin(): Promise<boolean>;
+
   /** Small operational key/value metadata (last cron run, last delivery). */
   getOpsMeta(key: string): Promise<string | null>;
   setOpsMeta(key: string, value: string): Promise<void>;
@@ -256,15 +267,24 @@ export interface Store {
   }>;
 }
 
-/** Temporary bootstrap admin credentials (overridable via env, never committed). */
+/**
+ * Temporary bootstrap admin credentials.
+ * SECURITY: there is NO default in production — the previous hard-coded
+ * fallback ("ChangeMe…") was treated as compromised and removed. In
+ * production these are only active when explicitly provided via env/secret;
+ * otherwise bootstrap is disabled and the owner provisions credentials with
+ * scripts/rotate-admin-password.mjs. Local development keeps a convenience
+ * default so `next dev` works out of the box.
+ */
+const DEV_ONLY = process.env.NODE_ENV !== "production";
 export const ADMIN_TEMP_EMAIL =
   process.env.ADMIN_TEMP_EMAIL ||
   process.env.TEMP_ADMIN_EMAIL ||
-  "admin@7fc.net";
+  (DEV_ONLY ? "admin@7fc.net" : "");
 export const ADMIN_TEMP_PASSWORD =
   process.env.ADMIN_TEMP_PASSWORD ||
   process.env.TEMP_ADMIN_PASSWORD ||
-  "ChangeMe-7FC-Now";
+  (DEV_ONLY ? "ChangeMe-7FC-Now" : "");
 
 /**
  * ADMIN_SETUP_MODE=false force-disables the temporary-login button even if a

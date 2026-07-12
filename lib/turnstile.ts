@@ -15,6 +15,22 @@ export function turnstileConfigured(): boolean {
   return !!process.env.TURNSTILE_SECRET_KEY;
 }
 
+/** Public site key (safe for the browser). Runtime var first so the key can
+ *  be added via wrangler.toml [vars] without a rebuild. */
+export function turnstileSiteKey(): string {
+  return (
+    process.env.TURNSTILE_SITE_KEY ||
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ||
+    ""
+  );
+}
+
+/** User-facing message when required security config is missing (fail closed). */
+export const SECURITY_UNAVAILABLE_MESSAGE =
+  "Signup is temporarily unavailable. Please try again later.";
+export const TURNSTILE_FAILED_MESSAGE =
+  "We could not verify the submission. Please try again.";
+
 interface SiteverifyResponse {
   success?: boolean;
   hostname?: string;
@@ -35,7 +51,15 @@ export async function verifyTurnstile(
   fetchImpl: SiteverifyFetch = fetch
 ): Promise<{ ok: boolean; configured: boolean; reason?: string }> {
   const secret = process.env.TURNSTILE_SECRET_KEY;
-  if (!secret) return { ok: true, configured: false };
+  if (!secret) {
+    // Fail closed in production: missing security configuration must never
+    // silently open the door. Development stays usable without keys.
+    return {
+      ok: process.env.NODE_ENV !== "production",
+      configured: false,
+      reason: "unconfigured",
+    };
+  }
   if (typeof token !== "string" || !token || token.length > 2048)
     return { ok: false, configured: true, reason: "missing-token" };
   try {

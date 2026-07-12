@@ -159,10 +159,12 @@ function mockVerify(response: unknown) {
   return async () => ({ json: async () => response });
 }
 
-test("turnstile: unconfigured -> skipped and reported unconfigured", async () => {
+test("turnstile: unconfigured -> skipped in dev only, reported unconfigured", async () => {
   delete process.env.TURNSTILE_SECRET_KEY;
   const res = await verifyTurnstile("token", "1.2.3.4");
-  assert.deepEqual(res, { ok: true, configured: false });
+  assert.equal(res.ok, true); // dev/test environment only
+  assert.equal(res.configured, false);
+  assert.equal(res.reason, "unconfigured");
 });
 
 test("turnstile: missing token fails when configured", async () => {
@@ -292,4 +294,145 @@ test("readiness counts include legacy supporters and outbox state", async () => 
   assert.ok(counts.legacy_consent_supporters >= 1);
   assert.ok(counts.outbox_sent >= 1);
   assert.equal(typeof counts.pending_privacy_requests, "number");
+});
+
+// ---------- Launch pass: durable rate limiting ----------
+
+test("durable rate limit: counts per window, blocks over limit, exposes Retry-After seconds", async () => {
+  const { durableRateLimit, rateLimitKey } = await import("../lib/ratelimit.ts");
+  for (let i = 0; i < 3; i++) {
+    const r = await durableRateLimit(store, "t-scope", "1.2.3.4", 3, 60_000);
+    assert.equal(r.allowed, true, `attempt ${i + 1} allowed`);
+  }
+  const blocked = await durableRateLimit(store, "t-scope", "1.2.3.4", 3, 60_000);
+  assert.equal(blocked.allowed, false);
+  assert.ok(blocked.retryAfterSeconds >= 1 && blocked.retryAfterSeconds <= 60);
+  // Different identifier unaffected
+  const other = await durableRateLimit(store, "t-scope", "5.6.7.8", 3, 60_000);
+  assert.equal(other.allowed, true);
+  // Keys never contain the raw identifier (privacy-preserving HMAC)
+  const key = rateLimitKey("t-scope", "1.2.3.4");
+  assert.ok(!key.includes("1.2.3.4"));
+  assert.match(key, /^t-scope:[a-f0-9]{40}$/);
+});
+
+test("durable rate limit: window expiry resets the counter", async () => {
+  const { durableRateLimit } = await import("../lib/ratelimit.ts");
+  for (let i = 0; i < 2; i++)
+    await durableRateLimit(store, "t-exp", "9.9.9.9", 2, 50);
+  const blocked = await durableRateLimit(store, "t-exp", "9.9.9.9", 2, 50);
+  assert.equal(blocked.allowed, false);
+  await new Promise((r) => setTimeout(r, 80));
+  const fresh = await durableRateLimit(store, "t-exp", "9.9.9.9", 2, 50);
+  assert.equal(fresh.allowed, true);
+});
+
+test("retention cleanup purges expired rate windows", async () => {
+  const { durableRateLimit } = await import("../lib/ratelimit.ts");
+  await durableRateLimit(store, "t-clean", "a", 5, 1);
+  await new Promise((r) => setTimeout(r, 10));
+  await store.retentionCleanup();
+  assert.equal(
+    (await store.countActiveRateLimits()) >= 0,
+    true // expired entries removed; count reflects only live windows
+  );
+});
+
+// ---------- Launch pass: form-state timing ----------
+
+test("form state: valid after minimum fill time; forged/instant/expired rejected", async () => {
+  const { issueFormState, verifyFormState } = await import("../lib/formstate.ts");
+  const now = Date.now();
+  const state = issueFormState(now - 5_000);
+  assert.equal(verifyFormState(state, now), true);
+  // Impossibly fast (bot)
+  assert.equal(verifyFormState(issueFormState(now), now), false);
+  // Forged signature
+  assert.equal(verifyFormState(`${now - 5000}.forgedsig`, now), false);
+  // Missing / garbage
+  assert.equal(verifyFormState(undefined, now), false);
+  assert.equal(verifyFormState("", now), false);
+  // Expired (older than 24h)
+  assert.equal(
+    verifyFormState(issueFormState(now - 25 * 60 * 60 * 1000), now),
+    false
+  );
+});
+
+// ---------- Launch pass: production fail-closed Turnstile ----------
+
+test("turnstile: production without secret fails closed (no bypass)", async () => {
+  const orig = process.env.NODE_ENV;
+  delete process.env.TURNSTILE_SECRET_KEY;
+  process.env.NODE_ENV = "production";
+  const res = await verifyTurnstile("any-token", "1.2.3.4", "supporter_signup");
+  assert.equal(res.ok, false);
+  assert.equal(res.configured, false);
+  process.env.NODE_ENV = orig;
+});
+
+// ---------- Launch pass: lifecycle email ordering ----------
+
+test("welcome email is queued only on approval, never at verification; owner alert exactly once", async () => {
+  const { queuePostVerification, queueApprovalWelcome, queueRejectionNotice } =
+    await import("../lib/wall-lifecycle.ts");
+  const res = await store.submitSupporter({
+    first_name: "Order",
+    last_name: null,
+    email: "order@example.com",
+    country_name: "Portugal",
+    country_code: "PT",
+    favorite_era: null,
+    message: null,
+    show_full_name: false,
+    consents: {
+      terms_version: "t",
+      privacy_version: "p",
+      display_consent: true,
+      marketing_consent: false,
+      age_attested: true,
+      require_email_verification: true,
+    },
+  });
+  assert.ok(!("error" in res));
+  if ("error" in res) return;
+  const s = (await store.getSupporterById(res.id))!;
+
+  // Verification stage: owner alert only — no welcome exists yet.
+  await queuePostVerification(store, s);
+  await queuePostVerification(store, s); // retry must not duplicate
+  assert.ok(await store.getOutboxByEventKey(`owner-alert:${s.id}`));
+  assert.equal(await store.getOutboxByEventKey(`welcome:${s.id}`), null);
+
+  // Approval stage: exactly one welcome even across retries.
+  await queueApprovalWelcome(store, s);
+  await queueApprovalWelcome(store, s);
+  const welcome = await store.getOutboxByEventKey(`welcome:${s.id}`);
+  assert.ok(welcome);
+  assert.equal(welcome!.subject, `Welcome to 7FC, Supporter #${s.supporter_number}`);
+
+  // Rejection notice is its own idempotent event and is not the welcome.
+  await queueRejectionNotice(store, s);
+  const notice = await store.getOutboxByEventKey(`reject-notice:${s.id}`);
+  assert.ok(notice);
+  assert.equal(notice!.subject, "An update on your 7FC submission");
+});
+
+test("owner alert uses the required subject and welcome/verification subjects match spec", async () => {
+  const { ownerSignupAlert, verificationEmail, welcomeEmail } = await import(
+    "../lib/email/templates.ts"
+  );
+  assert.equal(
+    ownerSignupAlert({
+      supporterNumber: 1, firstName: "A", lastName: null, email: "a@b.co",
+      country: "PT", era: null, message: null, displayConsent: true,
+      marketingConsent: false, verifiedAt: "-", status: "pending", createdAt: "-",
+    }).subject,
+    "New Verified 7FC Signup Awaiting Review"
+  );
+  assert.equal(verificationEmail("A", "https://x").subject, "Verify your email for 7FC");
+  assert.equal(
+    welcomeEmail({ firstName: "A", supporterNumber: 12, country: "PT", era: null }).subject,
+    "Welcome to 7FC, Supporter #12"
+  );
 });

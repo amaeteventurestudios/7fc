@@ -1,39 +1,67 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 declare global {
   interface Window {
     turnstile?: {
       render: (el: HTMLElement, opts: Record<string, unknown>) => string;
       remove: (id: string) => void;
+      reset: (id: string) => void;
     };
     __turnstileLoading?: boolean;
   }
 }
 
-export const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
-
 /**
- * Cloudflare Turnstile widget. Renders nothing when no site key is
- * configured (the server skips validation in that case too). Sets the
- * token into a hidden input named `turnstile_token` inside the parent form.
+ * Cloudflare Turnstile widget (Managed mode).
+ * Site-key resolution: build-time NEXT_PUBLIC var when present, else the
+ * runtime /api/turnstile/config endpoint (lets ops set the key via Worker
+ * vars without a rebuild). Only the PUBLIC site key ever reaches the
+ * browser. The widget auto-resets on token expiry so a stale form remains
+ * usable, and exposes its status to assistive technology.
  */
 export default function TurnstileWidget({ action }: { action?: string }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [siteKey, setSiteKey] = useState<string | null>(
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || null
+  );
 
   useEffect(() => {
-    if (!TURNSTILE_SITE_KEY || !ref.current) return;
+    if (siteKey !== null) return;
+    let cancelled = false;
+    fetch("/api/turnstile/config")
+      .then((r) => r.json())
+      .then((j) => {
+        if (!cancelled) setSiteKey(typeof j.siteKey === "string" ? j.siteKey : "");
+      })
+      .catch(() => {
+        if (!cancelled) setSiteKey("");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [siteKey]);
+
+  useEffect(() => {
+    if (!siteKey || !ref.current) return;
     let widgetId: string | null = null;
     let cancelled = false;
 
     const render = () => {
       if (cancelled || !ref.current || !window.turnstile) return;
       widgetId = window.turnstile.render(ref.current, {
-        sitekey: TURNSTILE_SITE_KEY,
+        sitekey: siteKey,
         theme: "dark",
         action,
         "response-field-name": "turnstile_token",
+        // Tokens live 5 minutes; refresh in place so the form stays usable.
+        "refresh-expired": "auto",
+        "error-callback": () => {
+          // Recoverable client error: reset instead of leaving a dead widget.
+          if (widgetId && window.turnstile) window.turnstile.reset(widgetId);
+          return true;
+        },
       });
     };
 
@@ -60,8 +88,15 @@ export default function TurnstileWidget({ action }: { action?: string }) {
       cancelled = true;
       if (widgetId && window.turnstile) window.turnstile.remove(widgetId);
     };
-  }, [action]);
+  }, [siteKey, action]);
 
-  if (!TURNSTILE_SITE_KEY) return null;
-  return <div ref={ref} className="flex justify-center" aria-label="Human verification" />;
+  if (!siteKey) return null;
+  return (
+    <div
+      ref={ref}
+      className="flex justify-center"
+      aria-label="Human verification"
+      aria-live="polite"
+    />
+  );
 }

@@ -98,7 +98,7 @@ export default function ReportEntry() {
             </label>
             <textarea id="rp-details" name="details" rows={2} maxLength={1000} className={inputCls} />
           </div>
-          <TurnstileWidget action="wall_report" />
+          <TurnstileWidget action="entry_report" />
           {error && <p className="text-xs text-red-400 text-center" role="alert">{error}</p>}
           <div className="text-center">
             <button type="submit" disabled={busy} className="border border-gold/50 text-gold-2 text-[11px] font-bold tracking-widest uppercase px-4 py-2 rounded hover:bg-gold/10 disabled:opacity-50">

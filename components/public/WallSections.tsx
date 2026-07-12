@@ -224,9 +224,11 @@ interface SubmitResult {
 export function GlobalWallForm({
   settings,
   signupAvailable = true,
+  formState = "",
 }: {
   settings: GlobalWallSettings;
   signupAvailable?: boolean;
+  formState?: string;
 }) {
   const { selectedEra, setSelectedEra } = useEra();
   const [submitting, setSubmitting] = useState(false);
@@ -278,7 +280,7 @@ export function GlobalWallForm({
               </p>
               <p className="text-sm md:text-base text-gray-300 mt-5" role="status">
                 {result.needs_verification
-                  ? "One step left: we've sent a verification email to your address. Click the link inside within 24 hours to confirm your signup. Your entry will appear on the Global 7 Wall after verification and approval."
+                  ? "Thank you for signing up for 7FC. We sent a verification link to your email address. Please verify your email within 24 hours. Your submission will not be reviewed or published until your email is verified."
                   : result.status === "pending"
                     ? "Your profile will appear on the Global 7 Wall after approval."
                     : "You are now live on the Global 7 Wall."}
@@ -435,7 +437,8 @@ export function GlobalWallForm({
                     <span>I would like to receive occasional 7FC news and updates. (Optional)</span>
                   </label>
                 </div>
-                <TurnstileWidget action="wall_signup" />
+                <TurnstileWidget action="supporter_signup" />
+                <input type="hidden" name="form_state" value={formState} />
                 {/* Honeypot — humans never see or fill this */}
                 <input
                   type="text"

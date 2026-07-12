@@ -60,21 +60,23 @@ export interface EmailContent {
 }
 
 export function verificationEmail(firstName: string, verifyUrl: string): EmailContent {
-  const subject = "Confirm your place in 7FC";
+  const subject = "Verify your email for 7FC";
   const html = layout(subject, `
     <p style="margin-top:0;">Hi ${esc(firstName)},</p>
-    <p>Thanks for raising your 7. One step remains: confirm your email address so we know this signup is really yours. Your entry cannot join the Global 7 Wall until it is verified.</p>
-    ${button(verifyUrl, "Confirm my email")}
+    <p>Thank you for your interest in 7FC. Before your Global 7 Wall submission can be reviewed, we need to verify your email address.</p>
+    ${button(verifyUrl, "Verify Email")}
     <p style="font-size:13px;color:#9ca3af;">Or open this link:<br><a href="${esc(verifyUrl)}" style="color:#d4af5e;word-break:break-all;">${esc(verifyUrl)}</a></p>
-    <p style="font-size:13px;color:#9ca3af;">This link expires in 24 hours and can be used once. If you didn't request this, you can ignore this email and no entry will be published.</p>
-    <p style="font-size:13px;color:#9ca3af;">Questions? Email <a href="mailto:support@sevenfc.net" style="color:#d4af5e;">support@sevenfc.net</a>.</p>`);
+    <p style="font-size:13px;color:#9ca3af;">This link expires in 24 hours and can be used once. Your submission remains private until it has been reviewed and approved — verification does not mean approval.</p>
+    <p style="font-size:13px;color:#9ca3af;">If you didn't sign up, you can ignore this email and nothing will be published. Questions? <a href="mailto:support@sevenfc.net" style="color:#d4af5e;">support@sevenfc.net</a></p>`);
   const text = `Hi ${firstName},
 
-Thanks for raising your 7. Confirm your email address to complete your Global 7 Wall signup:
+Thank you for your interest in 7FC. Before your Global 7 Wall submission can be reviewed, we need to verify your email address:
 
 ${verifyUrl}
 
-This link expires in 24 hours and can be used once. If you didn't request this, ignore this email and no entry will be published.
+This link expires in 24 hours and can be used once. Your submission remains private until it has been reviewed and approved - verification does not mean approval.
+
+If you didn't sign up, ignore this email and nothing will be published.
 
 Support: support@sevenfc.net
 ${FOOTER_LINKS_TEXT}
@@ -88,37 +90,23 @@ export function welcomeEmail(opts: {
   supporterNumber: number;
   country: string;
   era: string | null;
-  displayConsent: boolean;
-  underReview: boolean;
-  manageUrl: string;
 }): EmailContent {
-  const subject = `Welcome to 7FC. You are Supporter #${opts.supporterNumber}`;
-  const displayLine = opts.displayConsent
-    ? opts.underReview
-      ? "Your entry is in moderation review and will appear on the public Global 7 Wall once approved."
-      : "Your entry appears on the public Global 7 Wall."
-    : "You chose not to display your entry publicly, so it stays private.";
+  const subject = `Welcome to 7FC, Supporter #${opts.supporterNumber}`;
   const html = layout(subject, `
-    <p style="margin-top:0;">Welcome, ${esc(opts.firstName)}.</p>
+    <p style="margin-top:0;">Welcome, ${esc(opts.firstName)} — your submission has been approved.</p>
     <p style="font-size:22px;font-weight:900;color:#f0d492;text-align:center;margin:18px 0;">Supporter #${opts.supporterNumber}</p>
     <p>Country: <strong>${esc(opts.country)}</strong>${opts.era ? `<br>Favorite era: <strong>${esc(opts.era)}</strong>` : ""}</p>
-    <p>${esc(displayLine)}</p>
     ${button(`${SITE_URL}/wall`, "Visit the Global 7 Wall")}
-    <p style="font-size:13px;color:#9ca3af;">Manage your entry — view, correct, unpublish, or delete your information — with your private link (expires in 1 hour; request a new one any time at ${SITE_URL}/manage):<br><a href="${esc(opts.manageUrl)}" style="color:#d4af5e;word-break:break-all;">${esc(opts.manageUrl)}</a></p>
-    <p style="font-size:13px;color:#9ca3af;">Your email address and any last name you provided stay private unless you explicitly chose otherwise. Support: <a href="mailto:support@sevenfc.net" style="color:#d4af5e;">support@sevenfc.net</a></p>`);
-  const text = `Welcome, ${opts.firstName}.
+    <p style="font-size:13px;color:#9ca3af;">Need to view, correct, unpublish, or delete your entry? Request your private management link any time at <a href="${SITE_URL}/manage" style="color:#d4af5e;">${SITE_URL}/manage</a> — it is emailed to this address and works for one hour.</p>
+    <p style="font-size:13px;color:#9ca3af;">Questions? <a href="mailto:support@sevenfc.net" style="color:#d4af5e;">support@sevenfc.net</a></p>`);
+  const text = `Welcome, ${opts.firstName} - your submission has been approved.
 
 You are Supporter #${opts.supporterNumber}.
 Country: ${opts.country}${opts.era ? `\nFavorite era: ${opts.era}` : ""}
 
-${displayLine}
-
 Global 7 Wall: ${SITE_URL}/wall
 
-Manage your entry (view, correct, unpublish, delete) with this private link (expires in 1 hour; request a new one at ${SITE_URL}/manage):
-${opts.manageUrl}
-
-Your email and any last name stay private unless you explicitly chose otherwise.
+Need to view, correct, unpublish, or delete your entry? Request your private management link any time at ${SITE_URL}/manage - it is emailed to this address and works for one hour.
 
 Support: support@sevenfc.net
 ${FOOTER_LINKS_TEXT}
@@ -141,9 +129,7 @@ export function ownerSignupAlert(s: {
   status: string;
   createdAt: string;
 }): EmailContent {
-  const subject = stripHeaderChars(
-    `New 7FC Supporter: #${s.supporterNumber}: ${s.country}`
-  );
+  const subject = "New Verified 7FC Signup Awaiting Review";
   const rows: Array<[string, string]> = [
     ["Supporter number", `#${s.supporterNumber}`],
     ["First name", s.firstName],
@@ -159,7 +145,7 @@ export function ownerSignupAlert(s: {
     ["Signup time (UTC)", s.createdAt],
   ];
   const html = layout(subject, `
-    <p style="margin-top:0;font-weight:bold;color:#f0d492;">New verified supporter signup</p>
+    <p style="margin-top:0;font-weight:bold;color:#f0d492;">A verified signup is awaiting moderation review</p>
     <table style="width:100%;border-collapse:collapse;font-size:14px;">
       ${rows.map(([k, v]) => `<tr><td style="padding:6px 8px;color:#9ca3af;border-bottom:1px solid #1f2937;white-space:nowrap;">${esc(k)}</td><td style="padding:6px 8px;border-bottom:1px solid #1f2937;">${esc(v)}</td></tr>`).join("")}
     </table>
@@ -245,5 +231,19 @@ ${manageUrl}
 If you didn't request it, ignore this email — nothing changes without this link.
 
 Support: support@sevenfc.net`;
+  return { subject, html, text };
+}
+
+/** Optional, respectful status notice when a submission is not approved.
+ *  Never includes internal moderation notes. */
+export function rejectionNotice(firstName: string): EmailContent {
+  const subject = "An update on your 7FC submission";
+  const body =
+    "Thank you for your interest in 7FC. After review, your Global 7 Wall submission was not approved for publication, and it will not appear on the site. This can happen when a submission does not fit the Community Guidelines or the format of the Wall. You are welcome to submit again.";
+  const html = layout(subject, `
+    <p style="margin-top:0;">Hi ${esc(firstName)},</p>
+    <p>${esc(body)}</p>
+    <p style="font-size:13px;color:#9ca3af;">Community Guidelines: <a href="${SITE_URL}/community-guidelines" style="color:#d4af5e;">${SITE_URL}/community-guidelines</a><br>Questions? <a href="mailto:support@sevenfc.net" style="color:#d4af5e;">support@sevenfc.net</a></p>`);
+  const text = `Hi ${firstName},\n\n${body}\n\nCommunity Guidelines: ${SITE_URL}/community-guidelines\nSupport: support@sevenfc.net\n\n${UNOFFICIAL}`;
   return { subject, html, text };
 }

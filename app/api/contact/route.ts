@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStore } from "@/lib/data";
 import { rateLimit, clientIp } from "@/lib/request";
-import { verifyTurnstile } from "@/lib/turnstile";
+import { turnstileGate, limitGate, formStateGate, HOUR } from "@/lib/guard";
 import { normalizeEmail, privacyHash } from "@/lib/tokens";
 import { enqueueEmail, deliverSoon } from "@/lib/email/outbox";
 import {
@@ -28,7 +28,8 @@ const CATEGORIES: Record<string, { to: string; label: string; replyTo: string }>
 
 export async function POST(req: NextRequest) {
   const ip = clientIp(req);
-  if (!rateLimit(`contact:${ip}`, 3, 10 * 60_000)) {
+  // In-memory pre-filter only; the durable 5/hour limit below governs.
+  if (!rateLimit(`contact:${ip}`, 10, 10 * 60_000)) {
     return NextResponse.json(
       { error: "Too many messages. Please wait a few minutes." },
       { status: 429 }
@@ -44,12 +45,10 @@ export async function POST(req: NextRequest) {
   if (typeof body.website === "string" && body.website.trim() !== "") {
     return NextResponse.json({ error: "Submission rejected." }, { status: 400 });
   }
-  const turnstile = await verifyTurnstile(body.turnstile_token, ip, "contact");
-  if (!turnstile.ok)
-    return NextResponse.json(
-      { error: "Human verification failed. Please try again." },
-      { status: 400 }
-    );
+  const gate = await turnstileGate(body.turnstile_token, ip, "contact_submit");
+  if (gate) return gate;
+  const timing = formStateGate(body.form_state);
+  if (timing) return timing;
 
   const name = stripHeaderChars(String(body.name ?? "")).slice(0, 100);
   const email = normalizeEmail(String(body.email ?? ""));
@@ -79,6 +78,10 @@ export async function POST(req: NextRequest) {
     );
 
   const store = await getStore();
+  const limited = await limitGate(store, [
+    { scope: "contact-ip", identifier: ip, limit: 5, windowMs: HOUR },
+  ]);
+  if (limited) return limited;
   // Idempotency: identical repeated submissions collapse into one event.
   const fingerprint = privacyHash(`${email}|${categoryKey}|${subject}|${message}`);
 

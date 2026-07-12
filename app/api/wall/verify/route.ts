@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getStore } from "@/lib/data";
 import { rateLimit, clientIp } from "@/lib/request";
 import { hashToken } from "@/lib/tokens";
-import { queuePostVerification } from "@/lib/wall-lifecycle";
+import { queuePostVerification, queueApprovalWelcome } from "@/lib/wall-lifecycle";
 
 /**
  * POST { token } — one-time email verification.
@@ -49,6 +49,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "This signup could not be verified." }, { status: 400 });
   }
   await queuePostVerification(store, supporter);
+  // When manual approval is disabled, verification IS the approval moment —
+  // the welcome email belongs to approval, never to mere verification.
+  if (supporter.status === "approved") {
+    await queueApprovalWelcome(store, supporter);
+  }
   return NextResponse.json({
     ok: true,
     supporter_number: supporter.supporter_number,

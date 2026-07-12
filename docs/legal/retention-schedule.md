@@ -20,6 +20,7 @@ processing call, `POST /api/admin/outbox`). The Privacy Policy
 | Rejected submissions | Remain non-public; anonymized/deleted on request; unverified ones fall under the 7-day rule | moderation + cleanup |
 | Suppression entries | Kept while needed to prevent re-mailing; removable after re-verification of the corrected address | manual |
 | Cookie-consent record | Client-side cookie, 12 months, re-requested when policy version changes | cookie expiry |
+| Rate-limit counters (HMAC-hashed IP/email keys, never raw) | Expire with their window (15 min – 24 h); purged every cron run | retentionCleanup |
 | Moderation history (activity log) | Operational log, no emails/PII in detail strings | — |
 | Raw IPs | Never persisted by the app; in-memory rate-limit keys only | design |
 | Backups (D1 exports + Cloudflare D1 Time Travel) | Manual export files kept max **90 days** in private storage; D1 Time Travel follows Cloudflare's ~30-day window | manual procedure |

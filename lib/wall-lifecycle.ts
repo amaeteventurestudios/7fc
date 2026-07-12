@@ -13,6 +13,7 @@ import {
   verificationEmail,
   welcomeEmail,
   ownerSignupAlert,
+  rejectionNotice,
   REPLY_TO_SUPPORT,
   OWNER_ALERTS_TO,
 } from "@/lib/email/templates";
@@ -45,35 +46,13 @@ export async function queueVerificationEmail(
   await deliverSoon(store);
 }
 
-/** After successful verification: queue exactly one welcome email and one
- *  owner alert (event keys make repeats impossible). */
+/** After successful verification: queue exactly one owner alert
+ *  (idempotent event key). The welcome email is NOT sent here — it is sent
+ *  only on administrator approval via queueApprovalWelcome. */
 export async function queuePostVerification(
   store: Store,
   supporter: Supporter
 ): Promise<void> {
-  const manageRaw = generateToken();
-  await store.createSecurityToken({
-    purpose: "manage",
-    subject_id: supporter.id,
-    token_hash: hashToken(manageRaw),
-    expires_at: new Date(Date.now() + RETENTION.managementTokenMs).toISOString(),
-  });
-  await enqueueEmail(store, {
-    eventKey: `welcome:${supporter.id}`,
-    type: "supporter_welcome_confirmation",
-    relatedId: supporter.id,
-    to: supporter.email,
-    replyTo: REPLY_TO_SUPPORT,
-    content: welcomeEmail({
-      firstName: supporter.first_name,
-      supporterNumber: supporter.supporter_number,
-      country: supporter.country_name,
-      era: supporter.favorite_era,
-      displayConsent: supporter.display_consent,
-      underReview: supporter.status === "pending",
-      manageUrl: `${SITE_URL}/manage?token=${manageRaw}`,
-    }),
-  });
   await enqueueEmail(store, {
     eventKey: `owner-alert:${supporter.id}`,
     type: "owner_signup_alert",
@@ -90,11 +69,49 @@ export async function queuePostVerification(
       message: supporter.message,
       displayConsent: supporter.display_consent,
       marketingConsent: supporter.marketing_consent,
-      verifiedAt: supporter.email_verified_at ?? "—",
+      verifiedAt: supporter.email_verified_at ?? "\u2014",
       status:
         supporter.status === "pending" ? "pending moderation" : supporter.status,
       createdAt: supporter.created_at,
     }),
+  });
+  await deliverSoon(store);
+}
+
+/** On administrator approval: queue exactly one welcome email (idempotent
+ *  event key welcome:{id} — retries can never duplicate it). */
+export async function queueApprovalWelcome(
+  store: Store,
+  supporter: Supporter
+): Promise<void> {
+  await enqueueEmail(store, {
+    eventKey: `welcome:${supporter.id}`,
+    type: "supporter_welcome_confirmation",
+    relatedId: supporter.id,
+    to: supporter.email,
+    replyTo: REPLY_TO_SUPPORT,
+    content: welcomeEmail({
+      firstName: supporter.first_name,
+      supporterNumber: supporter.supporter_number,
+      country: supporter.country_name,
+      era: supporter.favorite_era,
+    }),
+  });
+  await deliverSoon(store);
+}
+
+/** Optional respectful rejection notice (admin-triggered; idempotent). */
+export async function queueRejectionNotice(
+  store: Store,
+  supporter: Supporter
+): Promise<void> {
+  await enqueueEmail(store, {
+    eventKey: `reject-notice:${supporter.id}`,
+    type: "supporter_welcome_confirmation",
+    relatedId: supporter.id,
+    to: supporter.email,
+    replyTo: REPLY_TO_SUPPORT,
+    content: rejectionNotice(supporter.first_name),
   });
   await deliverSoon(store);
 }
