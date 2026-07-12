@@ -121,7 +121,7 @@ export function Hero() {
 }
 
 const STATS: Array<{ icon: string; value: number; suffix: string; label: string }> = [
-  { icon: "⚽", value: 880, suffix: "+", label: "Goals" },
+  { icon: "⚽", value: 970, suffix: "+", label: "Goals" },
   { icon: "🏆", value: 34, suffix: "+", label: "Trophies" },
   { icon: "🥇", value: 5, suffix: "", label: "Ballon d'Ors" },
   { icon: "👕", value: 5, suffix: "", label: "Clubs" },

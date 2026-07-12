@@ -154,7 +154,7 @@ export function Moments() {
 const RECORDS = [
   { value: 140, suffix: "+", top: "Champions League", label: "Goals" },
   { value: 130, suffix: "+", top: "International", label: "Goals" },
-  { value: 880, suffix: "+", top: "Career", label: "Goals" },
+  { value: 970, suffix: "+", top: "Career", label: "Goals" },
   { value: 60, suffix: "+", top: "Hat-Tricks", label: "Hat-Tricks" },
   { value: 34, suffix: "+", top: "Major Trophies", label: "Trophies" },
   { value: 20, suffix: "+", top: "Years at Elite Level", label: "Years" },
